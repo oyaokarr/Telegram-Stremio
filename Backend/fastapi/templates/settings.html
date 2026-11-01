@@ -2064,6 +2064,22 @@ async function refreshSettingsFromServer() {
     }
 }
 
+async function loadLiveTvChannelsFromServer() {
+    const preview = document.getElementById('live_tv_channels_preview');
+    try {
+        const response = await fetch('/api/admin/settings', {cache: 'no-store'});
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const channels = data.settings?.live_tv_channels;
+        if (!Array.isArray(channels)) throw new Error('Live TV settings are missing');
+        document.getElementById('live_tv_channels').value = formatLiveTvChannels(channels);
+        renderLiveTvPreview(channels);
+    } catch (error) {
+        if (preview) preview.textContent = 'Kanallar yüklenemedi. Sayfayı yenileyip tekrar dene.';
+        console.error('Failed to load live TV channels:', error);
+    }
+}
+
 function renderSettings(s) {
     // Toggles
     document.getElementById('replace_mode').checked = !!s.replace_mode;
@@ -2318,6 +2334,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     toggleDuplicateProtection();
     toggleMediaflowFields();
+    loadLiveTvChannelsFromServer();
     loadDbStats();
     loadLogs();
 });
