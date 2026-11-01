@@ -12,6 +12,7 @@ _SPEC.loader.exec_module(_LIVE_TV)
 LiveTVConfigError = _LIVE_TV.LiveTVConfigError
 live_channel_meta = _LIVE_TV.live_channel_meta
 live_channel_stream = _LIVE_TV.live_channel_stream
+live_channel_streams = _LIVE_TV.live_channel_streams
 normalize_live_tv_channels = _LIVE_TV.normalize_live_tv_channels
 youtube_video_id = _LIVE_TV.youtube_video_id
 
@@ -28,12 +29,13 @@ class LiveTVTests(unittest.TestCase):
         self.assertEqual(channels[0]["yt_id"], "XPy9T3ePqoQ")
         self.assertEqual(live_channel_meta(channels[0])["type"], "channel")
         self.assertEqual(live_channel_stream(channels[0])["ytId"], "XPy9T3ePqoQ")
+        self.assertEqual(len(live_channel_streams(channels[0])), 1)
 
     def test_watch_and_bare_youtube_ids_are_supported(self):
         self.assertEqual(youtube_video_id("https://www.youtube.com/watch?v=XPy9T3ePqoQ"), "XPy9T3ePqoQ")
         self.assertEqual(youtube_video_id("XPy9T3ePqoQ"), "XPy9T3ePqoQ")
 
-    def test_direct_https_m3u8_is_supported(self):
+    def test_direct_https_m3u8_is_supported_for_legacy_single_source(self):
         channels = normalize_live_tv_channels([
             {"name": "Official Stream", "source": "https://media.example.org/live/channel.m3u8?token=abc"}
         ])
@@ -41,6 +43,37 @@ class LiveTVTests(unittest.TestCase):
             live_channel_stream(channels[0])["url"],
             "https://media.example.org/live/channel.m3u8?token=abc",
         )
+        self.assertEqual(len(live_channel_streams(channels[0])), 1)
+
+    def test_multiple_sources_and_channel_metadata_are_preserved(self):
+        logo = "https://media.example.org/logo.png"
+        description = "Türkiye ve dünyadan canlı haber yayını."
+        channels = normalize_live_tv_channels([
+            {
+                "name": "TRT Haber",
+                "id": "live:trt-haber",
+                "logo": logo,
+                "description": description,
+                "sources": [
+                    {"name": "Uyarlanabilir ana yayın", "source": "https://media.example.org/master.m3u8"},
+                    {"name": "360p alternatif", "source": "https://media.example.org/master_360.m3u8"},
+                ],
+            }
+        ])
+        channel = channels[0]
+        meta = live_channel_meta(channel)
+        streams = live_channel_streams(channel)
+
+        self.assertEqual(channel["id"], "live:trt-haber")
+        self.assertEqual(meta["logo"], logo)
+        self.assertEqual(meta["poster"], logo)
+        self.assertEqual(meta["description"], description)
+        self.assertEqual(len(streams), 2)
+        self.assertEqual(streams[0]["name"], "Uyarlanabilir ana yayın")
+        self.assertEqual(streams[0]["description"], "TRT Haber")
+        self.assertEqual(streams[0]["url"], "https://media.example.org/master.m3u8")
+        self.assertEqual(streams[1]["name"], "360p alternatif")
+        self.assertEqual(streams[1]["url"], "https://media.example.org/master_360.m3u8")
 
     def test_non_https_or_non_direct_source_is_rejected(self):
         for source in (
@@ -51,6 +84,30 @@ class LiveTVTests(unittest.TestCase):
             with self.subTest(source=source):
                 with self.assertRaises(LiveTVConfigError):
                     normalize_live_tv_channels([{"name": "Test", "source": source}])
+
+    def test_invalid_url_in_any_source_is_rejected(self):
+        with self.assertRaises(LiveTVConfigError):
+            normalize_live_tv_channels([
+                {
+                    "name": "News",
+                    "sources": [
+                        {"name": "Primary", "source": "https://media.example.org/live.m3u8"},
+                        {"name": "Invalid", "source": "http://media.example.org/live.m3u8"},
+                    ],
+                }
+            ])
+
+    def test_too_many_sources_are_rejected(self):
+        with self.assertRaises(LiveTVConfigError):
+            normalize_live_tv_channels([
+                {
+                    "name": "News",
+                    "sources": [
+                        {"name": f"Source {i}", "source": f"https://media.example.org/{i}.m3u8"}
+                        for i in range(11)
+                    ],
+                }
+            ])
 
     def test_duplicate_channel_ids_are_rejected(self):
         with self.assertRaises(LiveTVConfigError):

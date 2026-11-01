@@ -19,7 +19,7 @@ from Backend.helper.cf_stream import cf_enabled, cf_stream_url
 from Backend.fastapi.themes import DEFAULT_THEME, DEFAULT_STYLE, get_theme
 from Backend.helper.fanart import fanart_artwork
 from Backend.helper.global_search import global_search, is_global_search_enabled
-from Backend.helper.live_tv import live_channel_meta, live_channel_stream
+from Backend.helper.live_tv import live_channel_meta, live_channel_streams
 from Backend.helper.metadata.providers.cinemeta import get_detail, get_season
 from Backend.helper.metadata import resolve_cover_url, COMBINED_SEASON, COMBINED_EPISODE_BASE
 from Backend.helper.split_files import parse_combined_episodes, combined_name_key
@@ -1030,7 +1030,7 @@ async def get_streams(
             (item for item in SettingsManager.current().live_tv_channels if item.get("id") == id),
             None,
         )
-        return {"streams": [live_channel_stream(channel)] if channel else []}
+        return {"streams": live_channel_streams(channel) if channel else []}
 
     try:
         parsed = _parse_stremio_id(id)
