@@ -272,7 +272,7 @@
     <!-- ── Live TV ─────────────────────────────────────────────────────── -->
     <div class="settings-card">
         <h2><i class="fa-solid fa-tv"></i> Canlı TV Kanalları</h2>
-        <p class="hint" style="margin:.3rem 0 1rem">Kanal adı, logo ve tek yayın bağlantısı yeterli. Test başarılı olursa bulunan HLS kaliteleri otomatik eklenir ve kanal kaydedilir.</p>
+        <p class="hint" style="margin:.3rem 0 1rem">Bir kanal için en fazla 3 yayın bağlantısı ekleyebilirsin. Her bağlantıyı yanındaki Test düğmesiyle ayrı ayrı dene; kaynak sırası Kaynak 1, 2, 3 olarak korunur.</p>
         <div style="display:grid;gap:.8rem;max-width:760px">
             <div>
                 <label class="s-label" for="live_tv_editor_name">Kanal adı</label>
@@ -290,18 +290,37 @@
                 <div id="live_tv_logo_preview" style="display:none;align-items:center;gap:.6rem;margin-top:.55rem"><img id="live_tv_logo_preview_img" alt="Logo önizlemesi" style="width:42px;height:42px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,.08);padding:3px"><span class="hint">Seçilen logo</span></div>
             </div>
             <div>
-                <label class="s-label" for="live_tv_editor_source">Yayın bağlantısı</label>
-                <input id="live_tv_editor_source" class="s-input" type="url" placeholder="HLS .m3u8 veya YouTube canlı yayın bağlantısı" autocomplete="url" spellcheck="false">
+                <span class="s-label">Yayın kaynakları</span>
+                <div style="display:grid;gap:.55rem">
+                    <div style="display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:.45rem;align-items:center">
+                        <label class="hint" for="live_tv_editor_source_1">Kaynak 1</label>
+                        <input id="live_tv_editor_source_1" class="s-input" type="url" placeholder="HLS .m3u8 veya YouTube bağlantısı" autocomplete="url" spellcheck="false" oninput="invalidateLiveTvSourceTest(1)">
+                        <button id="live_tv_source_test_btn_1" type="button" class="add-btn" onclick="testLiveTvSourceSlot(1)">Test et</button>
+                        <span id="live_tv_source_status_1" class="hint" aria-live="polite" style="grid-column:2/4;min-height:1em"></span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:.45rem;align-items:center">
+                        <label class="hint" for="live_tv_editor_source_2">Kaynak 2</label>
+                        <input id="live_tv_editor_source_2" class="s-input" type="url" placeholder="İsteğe bağlı ikinci bağlantı" autocomplete="url" spellcheck="false" oninput="invalidateLiveTvSourceTest(2)">
+                        <button id="live_tv_source_test_btn_2" type="button" class="add-btn" onclick="testLiveTvSourceSlot(2)">Test et</button>
+                        <span id="live_tv_source_status_2" class="hint" aria-live="polite" style="grid-column:2/4;min-height:1em"></span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:.45rem;align-items:center">
+                        <label class="hint" for="live_tv_editor_source_3">Kaynak 3</label>
+                        <input id="live_tv_editor_source_3" class="s-input" type="url" placeholder="İsteğe bağlı üçüncü bağlantı" autocomplete="url" spellcheck="false" oninput="invalidateLiveTvSourceTest(3)">
+                        <button id="live_tv_source_test_btn_3" type="button" class="add-btn" onclick="testLiveTvSourceSlot(3)">Test et</button>
+                        <span id="live_tv_source_status_3" class="hint" aria-live="polite" style="grid-column:2/4;min-height:1em"></span>
+                    </div>
+                </div>
                 <p id="live_tv_test_status" class="hint" aria-live="polite" style="margin:.4rem 0 0;min-height:1.2em"></p>
             </div>
             <div class="add-row" style="flex-wrap:wrap">
-                <button id="live_tv_submit_btn" type="button" class="add-btn" onclick="submitLiveTvChannel()"><i class="fa-solid fa-plug-circle-check"></i> Test et ve kanalı kaydet</button>
+                <button id="live_tv_submit_btn" type="button" class="add-btn" onclick="submitLiveTvChannel()"><i class="fa-solid fa-floppy-disk"></i> Kaynakları kaydet</button>
                 <button id="live_tv_cancel_edit_btn" type="button" class="add-btn" style="display:none" onclick="cancelLiveTvEdit()"><i class="fa-solid fa-xmark"></i> İptal</button>
             </div>
         </div>
         <h3 style="margin:1.2rem 0 .55rem">Eklediğin kanallar</h3>
         <div id="live_tv_channels_preview" aria-live="polite" style="display:grid;gap:.65rem"></div>
-        <p class="hint" style="margin-top:.65rem">Test yalnızca yayın listesini kontrol eder; video parçalarını indirmez. YouTube bağlantısında kaliteyi oynatıcı belirler. Yalnızca kullanmaya yetkili olduğun yayınları ekle.</p>
+        <p class="hint" style="margin-top:.65rem">Test HLS bağlantısının erişilebilirliğini veya YouTube bağlantısının tanınmasını kontrol eder; çözünürlük etiketi göstermez. Yalnızca kullanmaya yetkili olduğun yayınları ekle.</p>
         <textarea id="live_tv_channels" class="s-input" rows="1" style="display:none" aria-hidden="true"></textarea>
     </div>
 
@@ -1739,14 +1758,14 @@ function renderLiveTvPreview(channels) {
         const details = document.createElement('p');
         details.className = 'hint';
         details.style.margin = '.25rem 0 0';
-        details.textContent = `${sources.length} kalite seçeneği${channel.logo ? ' · logo eklendi' : ' · logo yok'}`;
+        details.textContent = `${sources.length} kaynak${channel.logo ? ' · logo eklendi' : ' · logo yok'}`;
         body.appendChild(details);
         const qualities = document.createElement('div');
         qualities.style.cssText = 'display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.45rem';
         sources.forEach((source, index) => {
             const chip = document.createElement('span');
             chip.style.cssText = 'font-size:.74rem;padding:.2rem .5rem;border-radius:999px;background:rgba(255,255,255,.08)';
-            chip.textContent = source.name || `Kaynak ${index + 1}`;
+            chip.textContent = `Kaynak ${index + 1}`;
             qualities.appendChild(chip);
         });
         body.appendChild(qualities);
@@ -1762,9 +1781,93 @@ function liveTvNameKey(name) {
 function setLiveTvEditMode(active) {
     const button = document.getElementById('live_tv_submit_btn');
     button.innerHTML = active
-        ? '<i class="fa-solid fa-plug-circle-check"></i> Test et ve değişiklikleri kaydet'
-        : '<i class="fa-solid fa-plug-circle-check"></i> Test et ve kanalı kaydet';
+        ? '<i class="fa-solid fa-floppy-disk"></i> Değişiklikleri kaydet'
+        : '<i class="fa-solid fa-floppy-disk"></i> Kaynakları kaydet';
     document.getElementById('live_tv_cancel_edit_btn').style.display = active ? 'inline-flex' : 'none';
+}
+
+function setLiveTvSourceStatus(index, message, state = null) {
+    const status = document.getElementById(`live_tv_source_status_${index}`);
+    if (!status) return;
+    status.textContent = message;
+    status.style.color = state === true ? 'var(--success, #22c55e)' : state === false ? 'var(--danger, #ef4444)' : 'var(--text-sec)';
+}
+
+function invalidateLiveTvSourceTest(index) {
+    window.liveTvSourceChecks = window.liveTvSourceChecks || {};
+    delete window.liveTvSourceChecks[index];
+    setLiveTvSourceStatus(index, 'Bağlantı değişti; yeniden test et.');
+}
+
+function fillLiveTvSourceSlots(sources = []) {
+    window.liveTvSourceChecks = {};
+    window.liveTvAutoThumbnailFetched = false;
+    for (let index = 1; index <= 3; index++) {
+        const source = sources[index - 1];
+        const url = source?.source || source?.url || '';
+        document.getElementById(`live_tv_editor_source_${index}`).value = url;
+        if (url) {
+            window.liveTvSourceChecks[index] = {url, ok: true, existing: true};
+            setLiveTvSourceStatus(index, 'Kayıtlı kaynak; istersen yeniden test et.');
+        } else {
+            setLiveTvSourceStatus(index, '');
+        }
+    }
+}
+
+function clearLiveTvSourceSlots() {
+    fillLiveTvSourceSlots([]);
+}
+
+async function testLiveTvSourceSlot(index) {
+    const input = document.getElementById(`live_tv_editor_source_${index}`);
+    const button = document.getElementById(`live_tv_source_test_btn_${index}`);
+    const url = input?.value.trim() || '';
+    if (!url) {
+        setLiveTvSourceStatus(index, `Kaynak ${index} bağlantısı boş.`, false);
+        return false;
+    }
+    const originalLabel = button.innerHTML;
+    button.disabled = true;
+    button.textContent = 'Test…';
+    setLiveTvSourceStatus(index, 'Bağlantı kontrol ediliyor…');
+    try {
+        const response = await fetch('/api/admin/live-tv/test-source', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({source: url}),
+        });
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.detail || result.message || `HTTP ${response.status}`);
+
+        window.liveTvSourceChecks = window.liveTvSourceChecks || {};
+        window.liveTvSourceChecks[index] = {url, ok: true};
+        setLiveTvSourceStatus(index, result.kind === 'youtube' ? 'YouTube bağlantısı tanındı.' : 'HLS bağlantısı erişilebilir.', true);
+
+        const logoInput = document.getElementById('live_tv_editor_logo');
+        if (!logoInput.value.trim() && result.kind === 'youtube') {
+            const thumbnail = result.thumbnail_url || (result.video_id
+                ? `https://i.ytimg.com/vi/${encodeURIComponent(result.video_id)}/hqdefault.jpg`
+                : '');
+            if (thumbnail) {
+                logoInput.value = thumbnail;
+                window.liveTvAutoThumbnailFetched = true;
+                updateLiveTvLogoPreview();
+                const summary = document.getElementById('live_tv_test_status');
+                summary.textContent = 'YouTube küçük kapağı otomatik alındı.';
+                summary.style.color = 'var(--success, #22c55e)';
+            }
+        }
+        return true;
+    } catch (error) {
+        window.liveTvSourceChecks = window.liveTvSourceChecks || {};
+        window.liveTvSourceChecks[index] = {url, ok: false};
+        setLiveTvSourceStatus(index, `Test başarısız: ${error.message}`, false);
+        return false;
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalLabel;
+    }
 }
 
 function editLiveTvChannel(channel) {
@@ -1773,10 +1876,11 @@ function editLiveTvChannel(channel) {
     document.getElementById('live_tv_editor_logo').value = channel.logo || '';
     const sources = channel.sources || (channel.source ? [{name: channel.source_name || '', source: channel.source}] : []);
     window.liveTvEditingSources = sources.map(source => ({...source}));
-    document.getElementById('live_tv_editor_source').value = sources[0]?.source || '';
+    fillLiveTvSourceSlots(sources);
     setLiveTvEditMode(true);
     updateLiveTvLogoPreview();
-    document.getElementById('live_tv_test_status').textContent = `“${channel.name}” düzenleniyor. Bilgileri değiştirip bağlantıyı test et.`;
+    const extraCount = Math.max(0, sources.length - 3);
+    document.getElementById('live_tv_test_status').textContent = `“${channel.name}” düzenleniyor.${extraCount ? ` İlk 3 kaynak düzenlenir; kalan ${extraCount} kaynak korunur.` : ''}`;
     document.getElementById('live_tv_editor_name').scrollIntoView({behavior: 'smooth', block: 'center'});
 }
 
@@ -1786,7 +1890,7 @@ function cancelLiveTvEdit() {
     setLiveTvEditMode(false);
     document.getElementById('live_tv_editor_name').value = '';
     document.getElementById('live_tv_editor_logo').value = '';
-    document.getElementById('live_tv_editor_source').value = '';
+    clearLiveTvSourceSlots();
     document.getElementById('live_tv_test_status').textContent = '';
     updateLiveTvLogoPreview();
 }
@@ -1849,14 +1953,16 @@ async function uploadLiveTvLogo(input) {
 
 async function submitLiveTvChannel() {
     const name = document.getElementById('live_tv_editor_name').value.trim();
-    let logo = document.getElementById('live_tv_editor_logo').value.trim();
-    let autoThumbnailFetched = false;
-    const sourceUrl = document.getElementById('live_tv_editor_source').value.trim();
+    const logo = document.getElementById('live_tv_editor_logo').value.trim();
     const status = document.getElementById('live_tv_test_status');
     const button = document.getElementById('live_tv_submit_btn');
     const textarea = document.getElementById('live_tv_channels');
-    if (!name || !sourceUrl) {
-        status.textContent = 'Kanal adını ve yayın bağlantısını gir.';
+    const sourceEntries = [1, 2, 3].map(index => ({
+        index,
+        url: document.getElementById(`live_tv_editor_source_${index}`).value.trim(),
+    })).filter(item => item.url);
+    if (!name || !sourceEntries.length) {
+        status.textContent = 'Kanal adını ve en az bir yayın bağlantısını gir.';
         status.style.color = 'var(--danger, #ef4444)';
         return;
     }
@@ -1865,33 +1971,27 @@ async function submitLiveTvChannel() {
         status.style.color = 'var(--danger, #ef4444)';
         return;
     }
+    const duplicateUrl = sourceEntries.some((item, index) => sourceEntries.some((other, otherIndex) => index !== otherIndex && item.url === other.url));
+    if (duplicateUrl) {
+        status.textContent = 'Aynı bağlantıyı birden fazla kaynak alanına ekleme.';
+        status.style.color = 'var(--danger, #ef4444)';
+        return;
+    }
+    const untested = sourceEntries.find(item => {
+        const check = window.liveTvSourceChecks?.[item.index];
+        return !check || check.url !== item.url || !check.ok;
+    });
+    if (untested) {
+        status.textContent = `Kaynak ${untested.index} henüz test edilmedi; yanındaki Test et düğmesine bas.`;
+        status.style.color = 'var(--danger, #ef4444)';
+        return;
+    }
 
     const before = textarea.value;
     button.disabled = true;
-    status.textContent = 'Bağlantı test ediliyor…';
+    status.textContent = 'Kanallar kaydediliyor…';
     status.style.color = 'var(--text-sec)';
     try {
-        const response = await fetch('/api/admin/live-tv/test-source', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({source: sourceUrl}),
-        });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
-        if (!result.ok) throw new Error(result.message || 'Bağlantı testi başarısız.');
-
-        if (!logo && result.kind === 'youtube') {
-            const thumbnail = result.thumbnail_url || (result.video_id
-                ? `https://i.ytimg.com/vi/${encodeURIComponent(result.video_id)}/hqdefault.jpg`
-                : '');
-            if (thumbnail) {
-                logo = thumbnail;
-                document.getElementById('live_tv_editor_logo').value = thumbnail;
-                updateLiveTvLogoPreview();
-                autoThumbnailFetched = true;
-            }
-        }
-
         const channels = collectLiveTvChannels();
         if (channels === null) throw new Error('Kanal listesi okunamadı.');
         const editingKey = liveTvNameKey(window.liveTvEditingChannel);
@@ -1904,21 +2004,14 @@ async function submitLiveTvChannel() {
         }
 
         const oldChannel = existingIndex >= 0 ? channels[existingIndex] : null;
-        const oldSources = Array.isArray(oldChannel?.sources) ? oldChannel.sources : [];
-        const unchangedExistingSource = oldChannel && oldSources.some(item => (item.source || item.url) === sourceUrl);
-        const foundVariants = result.kind === 'hls' && Array.isArray(result.variant_sources)
-            ? result.variant_sources.filter(item => item.source)
-            : [];
-        let sources;
-        if (foundVariants.length) {
-            sources = foundVariants.map(item => ({name: item.name || 'HLS kalite', source: item.source}));
-        } else if (unchangedExistingSource) {
-            sources = oldSources;
-        } else {
-            sources = [{
-                name: result.kind === 'youtube' ? 'YouTube · otomatik kalite' : 'Uyarlanabilir HLS',
-                source: sourceUrl,
-            }];
+        const oldSources = Array.isArray(oldChannel?.sources)
+            ? oldChannel.sources
+            : (oldChannel?.source ? [{source: oldChannel.source, name: oldChannel.source_name || ''}] : []);
+        const sources = sourceEntries.map(item => ({name: `Kaynak ${item.index}`, source: item.url}));
+        const overflowSources = oldSources.slice(3).filter(item => item.source || item.url);
+        let nextSourceNumber = Math.max(3, ...sourceEntries.map(item => item.index)) + 1;
+        for (const source of overflowSources) {
+            sources.push({name: `Kaynak ${nextSourceNumber++}`, source: source.source || source.url});
         }
         const channel = {
             name,
@@ -1931,12 +2024,7 @@ async function submitLiveTvChannel() {
 
         textarea.value = formatLiveTvChannels(channels);
         renderLiveTvPreview(channels);
-        let successText = result.kind === 'youtube'
-            ? `Bağlantı çalışıyor. YouTube kalitesini oynatıcı otomatik seçer; kanal ${sources.length} yayın seçeneğiyle kaydediliyor.`
-            : foundVariants.length
-                ? `Bağlantı çalışıyor. ${foundVariants.length} kalite otomatik eklendi: ${sources.map(item => item.name).join(', ')}. Kaydediliyor…`
-                : `Bağlantı çalışıyor. Ayrı kalite listesi yok; uyarlanabilir yayın kaydediliyor.`;
-        status.textContent = successText;
+        status.textContent = `${sources.length} kaynak verilen sırayla kaydediliyor…`;
         status.style.color = 'var(--success, #22c55e)';
         const saved = await saveLiveTvChannels();
         if (!saved) {
@@ -1948,19 +2036,18 @@ async function submitLiveTvChannel() {
             return;
         }
 
-        status.textContent = result.kind === 'youtube'
-            ? `Tamamlandı: ${name} kaydedildi.${autoThumbnailFetched ? ' Küçük kapak linkten otomatik alındı.' : ' YouTube kalitesini oynatıcı otomatik seçer.'}`
-            : `Tamamlandı: ${name} için ${sources.length} yayın seçeneği kaydedildi.`;
+        const autoThumbnailFetched = Boolean(window.liveTvAutoThumbnailFetched);
+        status.textContent = `Tamamlandı: ${name} için ${sources.length} kaynak kaydedildi.${autoThumbnailFetched ? ' YouTube küçük kapağı otomatik alındı.' : ''}`;
         status.style.color = 'var(--success, #22c55e)';
         window.liveTvEditingChannel = null;
         window.liveTvEditingSources = null;
         document.getElementById('live_tv_editor_name').value = '';
         document.getElementById('live_tv_editor_logo').value = '';
-        document.getElementById('live_tv_editor_source').value = '';
+        clearLiveTvSourceSlots();
         setLiveTvEditMode(false);
         updateLiveTvLogoPreview();
     } catch (error) {
-        status.textContent = `Test başarısız: ${error.message}`;
+        status.textContent = `Kaydetme başarısız: ${error.message}`;
         status.style.color = 'var(--danger, #ef4444)';
     } finally {
         button.disabled = false;
