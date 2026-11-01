@@ -286,6 +286,7 @@
                     <input id="live_tv_logo_file" type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden onchange="uploadLiveTvLogo(this)">
                     <span class="hint">PNG, JPG, GIF veya WebP · en fazla 4 MB</span>
                 </div>
+                <span class="hint" style="display:block;margin-top:.35rem">YouTube bağlantısında küçük kapak otomatik alınır. HLS (.m3u8) bağlantıları kapak görseli taşımaz; onlar için galeriden logo seçebilirsin.</span>
                 <div id="live_tv_logo_preview" style="display:none;align-items:center;gap:.6rem;margin-top:.55rem"><img id="live_tv_logo_preview_img" alt="Logo önizlemesi" style="width:42px;height:42px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,.08);padding:3px"><span class="hint">Seçilen logo</span></div>
             </div>
             <div>
@@ -1848,7 +1849,8 @@ async function uploadLiveTvLogo(input) {
 
 async function submitLiveTvChannel() {
     const name = document.getElementById('live_tv_editor_name').value.trim();
-    const logo = document.getElementById('live_tv_editor_logo').value.trim();
+    let logo = document.getElementById('live_tv_editor_logo').value.trim();
+    let autoThumbnailFetched = false;
     const sourceUrl = document.getElementById('live_tv_editor_source').value.trim();
     const status = document.getElementById('live_tv_test_status');
     const button = document.getElementById('live_tv_submit_btn');
@@ -1877,6 +1879,18 @@ async function submitLiveTvChannel() {
         const result = await response.json();
         if (!response.ok) throw new Error(result.detail || `HTTP ${response.status}`);
         if (!result.ok) throw new Error(result.message || 'Bağlantı testi başarısız.');
+
+        if (!logo && result.kind === 'youtube') {
+            const thumbnail = result.thumbnail_url || (result.video_id
+                ? `https://i.ytimg.com/vi/${encodeURIComponent(result.video_id)}/hqdefault.jpg`
+                : '');
+            if (thumbnail) {
+                logo = thumbnail;
+                document.getElementById('live_tv_editor_logo').value = thumbnail;
+                updateLiveTvLogoPreview();
+                autoThumbnailFetched = true;
+            }
+        }
 
         const channels = collectLiveTvChannels();
         if (channels === null) throw new Error('Kanal listesi okunamadı.');
@@ -1935,7 +1949,7 @@ async function submitLiveTvChannel() {
         }
 
         status.textContent = result.kind === 'youtube'
-            ? `Tamamlandı: ${name} kaydedildi. YouTube kalitesini oynatıcı otomatik seçer.`
+            ? `Tamamlandı: ${name} kaydedildi.${autoThumbnailFetched ? ' Küçük kapak linkten otomatik alındı.' : ' YouTube kalitesini oynatıcı otomatik seçer.'}`
             : `Tamamlandı: ${name} için ${sources.length} yayın seçeneği kaydedildi.`;
         status.style.color = 'var(--success, #22c55e)';
         window.liveTvEditingChannel = null;

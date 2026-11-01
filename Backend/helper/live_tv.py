@@ -362,9 +362,17 @@ def live_channel_meta(channel: dict[str, Any]) -> dict[str, Any]:
     }
     if channel.get("description"):
         meta["description"] = channel["description"]
-    if channel.get("logo"):
-        meta["poster"] = channel["logo"]
-        meta["logo"] = channel["logo"]
+    logo = channel.get("logo")
+    if not logo:
+        yt_id = channel.get("yt_id") or next(
+            (source.get("yt_id") for source in channel.get("sources", []) if source.get("yt_id")),
+            None,
+        )
+        if yt_id:
+            logo = f"https://i.ytimg.com/vi/{yt_id}/hqdefault.jpg"
+    if logo:
+        meta["poster"] = logo
+        meta["logo"] = logo
     return meta
 
 

@@ -35,6 +35,16 @@ class LiveTVTests(unittest.TestCase):
         self.assertEqual(live_channel_stream(channels[0])["ytId"], "XPy9T3ePqoQ")
         self.assertEqual(len(live_channel_streams(channels[0])), 1)
 
+    def test_youtube_thumbnail_is_used_when_channel_has_no_custom_logo(self):
+        channel = normalize_live_tv_channels([
+            {"name": "Behzat Ç.", "source": "https://www.youtube.com/live/XPy9T3ePqoQ"}
+        ])[0]
+        meta = live_channel_meta(channel)
+        thumbnail = "https://i.ytimg.com/vi/XPy9T3ePqoQ/hqdefault.jpg"
+
+        self.assertEqual(meta["poster"], thumbnail)
+        self.assertEqual(meta["logo"], thumbnail)
+
     def test_watch_and_bare_youtube_ids_are_supported(self):
         self.assertEqual(youtube_video_id("https://www.youtube.com/watch?v=XPy9T3ePqoQ"), "XPy9T3ePqoQ")
         self.assertEqual(youtube_video_id("XPy9T3ePqoQ"), "XPy9T3ePqoQ")
