@@ -432,7 +432,7 @@ async def get_manifest(token: str, token_data: dict = Depends(verify_token)):
         ]
         if live_channels:
             catalogs.append({
-                "type": "channel",
+                "type": "tv",
                 "id": "live_channels",
                 "name": "Live TV",
             })
@@ -521,7 +521,7 @@ async def get_manifest(token: str, token_data: dict = Depends(verify_token)):
         "name": addon_name,
         "logo": "https://i.postimg.cc/XqWnmDXr/Picsart-25-10-09-08-09-45-867.png",
         "description": addon_desc,
-        "types": ["movie", "series"] + (["channel"] if live_channels else []),
+        "types": ["movie", "series"] + (["tv", "channel"] if live_channels else []),
         "resources": resources,
         "catalogs": catalogs,
         "idPrefixes": ["tt", "tg", "kitsu"] + (["live:"] if live_channels else []),
@@ -547,10 +547,14 @@ async def get_catalog(token: str, media_type: str, id: str, extra: Optional[str]
     if SettingsManager.current().hide_catalog:
         raise HTTPException(status_code=404, detail="Catalog disabled")
 
-    if media_type == "channel":
+    if media_type in ("channel", "tv"):
         if id != "live_channels":
             return {"metas": []}
-        return {"metas": [live_channel_meta(channel) for channel in SettingsManager.current().live_tv_channels]}
+        metas = [live_channel_meta(channel) for channel in SettingsManager.current().live_tv_channels]
+        if media_type == "tv":
+            for meta in metas:
+                meta["type"] = "tv"
+        return {"metas": metas}
 
     if media_type not in ["movie", "series"]:
         raise HTTPException(status_code=404, detail="Invalid catalog type")
@@ -628,12 +632,15 @@ async def get_meta(token: str, media_type: str, id: str, token_data: dict = Depe
     if SettingsManager.current().hide_catalog:
         raise HTTPException(status_code=404, detail="Catalog disabled")
 
-    if media_type == "channel":
+    if media_type in ("channel", "tv"):
         channel = next(
             (item for item in SettingsManager.current().live_tv_channels if item.get("id") == id),
             None,
         )
-        return {"meta": live_channel_meta(channel) if channel else {}}
+        meta = live_channel_meta(channel) if channel else {}
+        if channel and media_type == "tv":
+            meta["type"] = "tv"
+        return {"meta": meta}
 
     parsed = _parse_stremio_id(id)
     imdb_id = parsed["imdb_id"] if not parsed["is_kitsu"] else None
@@ -1025,7 +1032,7 @@ async def get_streams(
             ]
         }
 
-    if media_type == "channel":
+    if media_type in ("channel", "tv"):
         channel = next(
             (item for item in SettingsManager.current().live_tv_channels if item.get("id") == id),
             None,
