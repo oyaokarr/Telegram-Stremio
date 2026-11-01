@@ -269,6 +269,21 @@
         </div>
     </div>
 
+    <!-- ── Live TV ─────────────────────────────────────────────────────── -->
+    <div class="settings-card">
+        <h2><i class="fa-solid fa-tv"></i> Live TV Channels</h2>
+        <label class="s-label" for="live_tv_channels">Channels</label>
+        <textarea id="live_tv_channels" class="s-input" rows="5" spellcheck="false"
+            placeholder="Behzat Ç. Canlı Yayın | https://www.youtube.com/live/XPy9T3ePqoQ"></textarea>
+        <p class="hint" style="margin-top:0.6rem">
+            One channel per line: <strong>Channel name | official YouTube live link or direct HTTPS .m3u8 link | logo URL (optional)</strong>.
+            YouTube links are passed to Nuvio as a video ID; no M3U8 extraction is needed. Only add streams you are authorized to use.
+        </p>
+        <p class="hint" style="margin-top:0.35rem">
+            Example: <code>Behzat Ç. Canlı Yayın | https://www.youtube.com/live/XPy9T3ePqoQ</code>
+        </p>
+    </div>
+
     <!-- ── Authentication ──────────────────────────────────────────────── -->
     <div class="settings-card">
         <h2><i class="fa-solid fa-shield-halved"></i> Admin Authentication</h2>
@@ -1486,6 +1501,8 @@ function toggleWebdavPwdVisibility() {
 async function saveSettings() {
     const btn   = document.getElementById('save-btn');
     const label = document.getElementById('save-label');
+    const liveTvChannels = collectLiveTvChannels();
+    if (liveTvChannels === null) return;
 
     const channelFields = [
         ...collectList('auth_channels'),
@@ -1558,6 +1575,7 @@ async function saveSettings() {
         global_search:                 document.getElementById('global_search').checked,
         global_search_channels:        collectList('global_search_channels'),
         manual_channels:               collectList('manual_channels'),
+        live_tv_channels:              liveTvChannels,
         announce_new_content:          document.getElementById('announce_new_content').checked,
         announcement_channel:          (function(){const el=document.getElementById('announcement_channel');return el.dataset.id||extractChannelId(el.value.trim());})(),
         skip_channel:                  (function(){const el=document.getElementById('skip_channel');return el.dataset.id||extractChannelId(el.value.trim());})(),
@@ -1645,6 +1663,33 @@ function capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1).replace(/_/g, ' ');
 }
 
+function collectLiveTvChannels() {
+    const textarea = document.getElementById('live_tv_channels');
+    if (!textarea) return [];
+    const entries = [];
+    const lines = textarea.value.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line || line.startsWith('#')) continue;
+        const parts = line.split('|').map(part => part.trim());
+        if (parts.length < 2 || !parts[0] || !parts[1]) {
+            alert(`Live TV line ${i + 1} must be: Channel name | source URL | optional logo URL`);
+            return null;
+        }
+        if (parts.length > 3) {
+            alert(`Live TV line ${i + 1} has too many | separators`);
+            return null;
+        }
+        entries.push({ name: parts[0], source: parts[1], logo: parts[2] || '' });
+    }
+    return entries;
+}
+
+function formatLiveTvChannels(channels) {
+    if (!Array.isArray(channels)) return '';
+    return channels.map(channel => [channel.name || '', channel.source || '', channel.logo || ''].join(' | ')).join('\n');
+}
+
 /* ── Post-save refresh, no page reload ──────────────────────────────────── */
 async function refreshSettingsFromServer() {
     try {
@@ -1691,6 +1736,7 @@ function renderSettings(s) {
     toggleFanartShuffle();
     document.getElementById('upstream_repo').value = s.upstream_repo || '';
     document.getElementById('upstream_branch').value = s.upstream_branch || '';
+    document.getElementById('live_tv_channels').value = formatLiveTvChannels(s.live_tv_channels || []);
     document.getElementById('subscription_group_id').value = s.subscription_group_id || 0;
     document.getElementById('http_proxy_url').value = s.http_proxy_url || '';
     document.getElementById('mediaflow_proxy').checked = !!s.mediaflow_proxy;

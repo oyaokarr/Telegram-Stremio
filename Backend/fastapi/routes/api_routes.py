@@ -63,6 +63,7 @@ from Backend.helper.session_auth import (
     submit_password,
 )
 from Backend.helper.settings_manager import SettingsManager
+from Backend.helper.live_tv import LiveTVConfigError, normalize_live_tv_channels
 from Backend.helper.split_files import strip_part_suffix
 from Backend.helper.subtitles import (
     list_languages,
@@ -1802,6 +1803,12 @@ async def update_settings_api(payload: dict) -> dict:
             payload["fanart_shuffle_interval"] = max(0, int(payload["fanart_shuffle_interval"]))
         except (ValueError, TypeError):
             payload["fanart_shuffle_interval"] = 5
+
+    if "live_tv_channels" in payload:
+        try:
+            payload["live_tv_channels"] = normalize_live_tv_channels(payload["live_tv_channels"])
+        except LiveTVConfigError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     if len([k for k in ("better_poster_enabled", "rpdb_enabled", "fanart_enabled") if payload.get(k)]) > 1:
         raise HTTPException(status_code=400, detail="Enable only one poster provider at a time")

@@ -19,6 +19,7 @@ from Backend.helper.cf_stream import cf_enabled, cf_stream_url
 from Backend.fastapi.themes import DEFAULT_THEME, DEFAULT_STYLE, get_theme
 from Backend.helper.fanart import fanart_artwork
 from Backend.helper.global_search import global_search, is_global_search_enabled
+from Backend.helper.live_tv import live_channel_meta, live_channel_stream
 from Backend.helper.metadata.providers.cinemeta import get_detail, get_season
 from Backend.helper.metadata import resolve_cover_url, COMBINED_SEASON, COMBINED_EPISODE_BASE
 from Backend.helper.split_files import parse_combined_episodes, combined_name_key
@@ -379,6 +380,7 @@ def stream_res_label(stream_name: str) -> str:
 #----- Manifest describing the addon's catalogs/resources for this token
 @router.get("/{token}/manifest.json")
 async def get_manifest(token: str, token_data: dict = Depends(verify_token)):
+    live_channels = SettingsManager.current().live_tv_channels
     if SettingsManager.current().hide_catalog:
         resources = ["stream", "subtitles"]
         catalogs = []
@@ -428,6 +430,12 @@ async def get_manifest(token: str, token_data: dict = Depends(verify_token)):
                 "extraSupported": ["genre", "skip", "search"]
             }
         ]
+        if live_channels:
+            catalogs.append({
+                "type": "channel",
+                "id": "live_channels",
+                "name": "Live TV",
+            })
 
         try:
             custom_catalogs = await db.get_custom_catalogs()
@@ -485,6 +493,8 @@ async def get_manifest(token: str, token_data: dict = Depends(verify_token)):
 
     addon_name = ADDON_NAME
     addon_desc = "Streams movies and series from your Telegram."
+    if live_channels:
+        addon_desc = "Movies and series from Telegram, plus configured live TV channels."
     addon_version = ADDON_VERSION
 
     #----- Show expiry info in the addon: token's own expiry first, else the subscription
@@ -499,10 +509,7 @@ async def get_manifest(token: str, token_data: dict = Depends(verify_token)):
 
         if expiry_obj:
             expiry_str = expiry_obj.strftime("%d %b %Y").lstrip("0")
-            addon_desc = (
-                f"📅 Access active until {expiry_str}.\n"
-                f"Streams movies and series from your Telegram."
-            )
+            addon_desc = f"📅 Access active until {expiry_str}.\n{addon_desc}"
             epoch_tag = format(int(expiry_obj.timestamp()) & 0xFFFF, "x")
             addon_version = f"{ADDON_VERSION}-{epoch_tag}"
     except Exception:
@@ -514,10 +521,10 @@ async def get_manifest(token: str, token_data: dict = Depends(verify_token)):
         "name": addon_name,
         "logo": "https://i.postimg.cc/XqWnmDXr/Picsart-25-10-09-08-09-45-867.png",
         "description": addon_desc,
-        "types": ["movie", "series"],
+        "types": ["movie", "series"] + (["channel"] if live_channels else []),
         "resources": resources,
         "catalogs": catalogs,
-        "idPrefixes": ["tt", "tg", "kitsu"],
+        "idPrefixes": ["tt", "tg", "kitsu"] + (["live:"] if live_channels else []),
         "behaviorHints": {
             "configurable": True,
             "configurationRequired": False
@@ -539,6 +546,11 @@ async def get_manifest(token: str, token_data: dict = Depends(verify_token)):
 async def get_catalog(token: str, media_type: str, id: str, extra: Optional[str] = None, token_data: dict = Depends(verify_token)):
     if SettingsManager.current().hide_catalog:
         raise HTTPException(status_code=404, detail="Catalog disabled")
+
+    if media_type == "channel":
+        if id != "live_channels":
+            return {"metas": []}
+        return {"metas": [live_channel_meta(channel) for channel in SettingsManager.current().live_tv_channels]}
 
     if media_type not in ["movie", "series"]:
         raise HTTPException(status_code=404, detail="Invalid catalog type")
@@ -615,6 +627,13 @@ async def get_catalog(token: str, media_type: str, id: str, extra: Optional[str]
 async def get_meta(token: str, media_type: str, id: str, token_data: dict = Depends(verify_token)):
     if SettingsManager.current().hide_catalog:
         raise HTTPException(status_code=404, detail="Catalog disabled")
+
+    if media_type == "channel":
+        channel = next(
+            (item for item in SettingsManager.current().live_tv_channels if item.get("id") == id),
+            None,
+        )
+        return {"meta": live_channel_meta(channel) if channel else {}}
 
     parsed = _parse_stremio_id(id)
     imdb_id = parsed["imdb_id"] if not parsed["is_kitsu"] else None
@@ -1005,6 +1024,13 @@ async def get_streams(
                 }
             ]
         }
+
+    if media_type == "channel":
+        channel = next(
+            (item for item in SettingsManager.current().live_tv_channels if item.get("id") == id),
+            None,
+        )
+        return {"streams": [live_channel_stream(channel)] if channel else []}
 
     try:
         parsed = _parse_stremio_id(id)

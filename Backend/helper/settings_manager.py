@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 
 import Backend.pyrofork.bot as botmod
 from Backend.config import Telegram
+from Backend.helper.live_tv import normalize_live_tv_channels
 from Backend.helper.passwords import hash_password
 from Backend.logger import LOGGER
 
@@ -42,6 +43,7 @@ _DEFAULTS: Dict[str, Any] = {
     "global_search_channels": [],
     "anime_channels": [],
     "manual_channels": [],
+    "live_tv_channels": [],
     "channel_titles": {},
     "announce_new_content": False,
     "announcement_channel": "",
@@ -142,6 +144,13 @@ class Settings:
         if not isinstance(raw, dict):
             return {}
         return {str(k): str(v) for k, v in raw.items() if k and v}
+
+    @property
+    def live_tv_channels(self) -> List[Dict[str, Any]]:
+        try:
+            return normalize_live_tv_channels(self._d.get("live_tv_channels") or [])
+        except ValueError:
+            return []
 
     @property
     def announce_new_content(self) -> bool:
