@@ -417,8 +417,10 @@ class SettingsManager:
             result = await db.reload_extra_databases(new_extra)
             results["databases"] = result.get("message", "databases reloaded")
 
-        #----- Phase 2: persist and flip the in-memory snapshot
-        await db.save_settings(merged)
+        #----- Phase 2: persist before flipping the in-memory snapshot
+        saved = await db.save_settings(merged)
+        if not saved:
+            raise RuntimeError("Settings could not be saved to the database; in-memory settings were not changed.")
         cls._current = Settings(merged)
 
         #----- Phase 3: reinit everything that reads current()
