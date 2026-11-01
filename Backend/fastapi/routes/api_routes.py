@@ -63,7 +63,7 @@ from Backend.helper.session_auth import (
     submit_password,
 )
 from Backend.helper.settings_manager import SettingsManager
-from Backend.helper.live_tv import LiveTVConfigError, normalize_live_tv_channels
+from Backend.helper.live_tv import LiveTVConfigError, normalize_live_tv_channels, probe_live_tv_source
 from Backend.helper.split_files import strip_part_suffix
 from Backend.helper.subtitles import (
     list_languages,
@@ -1764,6 +1764,13 @@ async def get_settings_api() -> dict:
     data["channel_titles"] = {str(k): str(v) for k, v in (titles or {}).items() if k and v}
 
     return {"settings": data}
+
+
+async def test_live_tv_source_api(payload: dict) -> dict:
+    source = str(payload.get("source") or "").strip()
+    if not source:
+        raise HTTPException(status_code=400, detail="A source URL is required.")
+    return await asyncio.to_thread(probe_live_tv_source, source)
 
 
 async def update_settings_api(payload: dict) -> dict:

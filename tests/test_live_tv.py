@@ -1,6 +1,8 @@
 import importlib.util
+import json
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 _MODULE_PATH = Path(__file__).resolve().parents[1] / "Backend" / "helper" / "live_tv.py"
@@ -14,6 +16,7 @@ live_channel_meta = _LIVE_TV.live_channel_meta
 live_channel_stream = _LIVE_TV.live_channel_stream
 live_channel_streams = _LIVE_TV.live_channel_streams
 normalize_live_tv_channels = _LIVE_TV.normalize_live_tv_channels
+probe_live_tv_source = _LIVE_TV.probe_live_tv_source
 youtube_video_id = _LIVE_TV.youtube_video_id
 
 
@@ -108,6 +111,29 @@ class LiveTVTests(unittest.TestCase):
                     ],
                 }
             ])
+
+    def test_hls_source_probe_reports_variants_without_downloading_segments(self):
+        url = "https://media.example.org/master.m3u8"
+        playlist = b"#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=640x360\nlow.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=2500000,RESOLUTION=1280x720\nhigh.m3u8\n"
+        with patch.object(_LIVE_TV, "_fetch_small_public_response", return_value=(200, url, "application/x-mpegURL", playlist)):
+            result = probe_live_tv_source(url)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["kind"], "hls")
+        self.assertEqual(result["variants"], ["640x360", "1280x720"])
+
+    def test_youtube_source_probe_returns_public_oembed_metadata(self):
+        payload = {"title": "Live news", "author_name": "Example News", "thumbnail_url": "https://i.ytimg.com/vi/XPy9T3ePqoQ/hqdefault.jpg"}
+        body = json.dumps(payload).encode("utf-8")
+        with patch.object(_LIVE_TV, "_fetch_small_public_response", return_value=(200, "https://www.youtube.com/oembed", "application/json", body)):
+            result = probe_live_tv_source("https://www.youtube.com/live/XPy9T3ePqoQ")
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["kind"], "youtube")
+        self.assertEqual(result["author_name"], "Example News")
+        self.assertIn("thumbnail_url", result)
+
+    def test_probe_refuses_private_ip_destinations(self):
+        with self.assertRaises(LiveTVConfigError):
+            _LIVE_TV._assert_public_https_url("https://127.0.0.1/live.m3u8")
 
     def test_duplicate_channel_ids_are_rejected(self):
         with self.assertRaises(LiveTVConfigError):

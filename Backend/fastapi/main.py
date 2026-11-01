@@ -110,6 +110,7 @@ from Backend.fastapi.routes.api_routes import (
     update_custom_catalog_api,
     update_media_api,
     update_request_api,
+    test_live_tv_source_api,
     update_settings_api,
     update_subscription_plan_api,
     update_token_limits_api,
@@ -685,6 +686,10 @@ async def admin_settings(request: Request, _: bool = Depends(require_auth)):
 @app.get("/api/admin/settings")
 async def get_settings(_: bool = Depends(require_auth)):
     return await get_settings_api()
+
+@app.post("/api/admin/live-tv/test-source")
+async def test_live_tv_source(payload: dict, _: bool = Depends(require_auth)):
+    return await test_live_tv_source_api(payload)
 
 @app.put("/api/admin/settings")
 async def update_settings(payload: dict, _: bool = Depends(require_auth)):

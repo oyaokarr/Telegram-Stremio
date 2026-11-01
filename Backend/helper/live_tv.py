@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import ipaddress
+import json
 import re
+import socket
 import unicodedata
 from typing import Any
-from urllib.parse import parse_qs, urlparse
+import urllib.error
+import urllib.request
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse
 
 
 _YOUTUBE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
@@ -11,6 +16,7 @@ _CHANNEL_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 _YOUTUBE_HOSTS = {"youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be"}
 _MAX_CHANNELS = 100
 _MAX_SOURCES_PER_CHANNEL = 10
+_MAX_PROBE_BYTES = 64 * 1024
 
 
 class LiveTVConfigError(ValueError):
@@ -63,6 +69,125 @@ def _valid_https_url(value: str) -> bool:
         )
     except ValueError:
         return False
+
+
+def _assert_public_https_url(value: str) -> None:
+    """Reject non-HTTPS, nonstandard ports, and non-public IP destinations."""
+    if not _valid_https_url(value):
+        raise LiveTVConfigError("Only public HTTPS source URLs can be tested.")
+    parsed = urlparse(value)
+    try:
+        port = parsed.port or 443
+    except ValueError as exc:
+        raise LiveTVConfigError("The source URL has an invalid port.") from exc
+    if port != 443:
+        raise LiveTVConfigError("Only the standard HTTPS port can be tested.")
+
+    host = parsed.hostname or ""
+    try:
+        addresses = {
+            ipaddress.ip_address(result[4][0].split("%", 1)[0])
+            for result in socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+        }
+    except (OSError, ValueError) as exc:
+        raise LiveTVConfigError("The source host could not be resolved.") from exc
+    if not addresses or any(not address.is_global for address in addresses):
+        raise LiveTVConfigError("The source must resolve only to public internet addresses.")
+
+
+class _PublicHttpsRedirectHandler(urllib.request.HTTPRedirectHandler):
+    max_redirections = 4
+    max_repeats = 3
+
+    def redirect_request(self, request, file_pointer, code, message, headers, new_url):
+        destination = urljoin(request.full_url, new_url)
+        _assert_public_https_url(destination)
+        return super().redirect_request(request, file_pointer, code, message, headers, destination)
+
+
+def _fetch_small_public_response(url: str) -> tuple[int, str, str, bytes]:
+    """Fetch a small public HTTPS response with bounded body and checked redirects."""
+    _assert_public_https_url(url)
+    opener = urllib.request.build_opener(
+        urllib.request.ProxyHandler({}),
+        _PublicHttpsRedirectHandler(),
+    )
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": "Mozilla/5.0 (compatible; LiveTVSourceCheck/1.0)",
+            "Accept": "application/vnd.apple.mpegurl, application/x-mpegURL, application/json, */*",
+            "Accept-Encoding": "identity",
+        },
+    )
+    with opener.open(request, timeout=8) as response:
+        body = response.read(_MAX_PROBE_BYTES + 1)
+        if len(body) > _MAX_PROBE_BYTES:
+            raise LiveTVConfigError("The response is too large to safely inspect as a playlist.")
+        return response.status, response.geturl(), response.headers.get("Content-Type", ""), body
+
+
+def probe_live_tv_source(source: str) -> dict[str, Any]:
+    """Check a public YouTube/HLS URL without downloading media segments."""
+    try:
+        channel = normalize_live_tv_channels([{"name": "Source check", "source": source}])[0]
+        normalized_source = channel["sources"][0]
+        yt_id = normalized_source.get("yt_id")
+        if yt_id:
+            canonical_url = f"https://www.youtube.com/watch?v={yt_id}"
+            oembed_url = "https://www.youtube.com/oembed?" + urlencode(
+                {"url": canonical_url, "format": "json"}
+            )
+            try:
+                status, _, _, body = _fetch_small_public_response(oembed_url)
+                if status < 200 or status >= 300:
+                    raise LiveTVConfigError(f"YouTube metadata endpoint returned HTTP {status}.")
+                metadata = json.loads(body.decode("utf-8", "replace"))
+                return {
+                    "ok": True,
+                    "kind": "youtube",
+                    "video_id": yt_id,
+                    "title": str(metadata.get("title") or "")[:300],
+                    "author_name": str(metadata.get("author_name") or "")[:200],
+                    "thumbnail_url": str(metadata.get("thumbnail_url") or "")[:2048],
+                    "message": "YouTube link recognized; public title and thumbnail metadata were retrieved. Playback still depends on Nuvio and the broadcaster's availability.",
+                }
+            except Exception:
+                return {
+                    "ok": True,
+                    "kind": "youtube",
+                    "video_id": yt_id,
+                    "message": "YouTube link format is valid, but public metadata could not be retrieved. This does not confirm playback availability.",
+                }
+
+        url = normalized_source["source"]
+        status, final_url, content_type, body = _fetch_small_public_response(url)
+        if status < 200 or status >= 300:
+            return {"ok": False, "kind": "hls", "message": f"The source returned HTTP {status}."}
+        text = body.decode("utf-8", "replace").lstrip("\ufeff \r\n\t")
+        if not text.startswith("#EXTM3U"):
+            return {"ok": False, "kind": "hls", "message": "The URL responded, but the response is not an HLS #EXTM3U playlist."}
+        resolutions = re.findall(r"RESOLUTION=([0-9]{2,5}x[0-9]{2,5})", text, flags=re.IGNORECASE)
+        if resolutions:
+            message = f"HLS master playlist is reachable with {len(resolutions)} quality variant(s): {', '.join(resolutions[:8])}."
+        else:
+            message = "Valid HLS media playlist is reachable; media segments were not downloaded."
+        return {
+            "ok": True,
+            "kind": "hls",
+            "final_host": urlparse(final_url).hostname or "",
+            "content_type": content_type[:160],
+            "variants": resolutions[:8],
+            "message": message,
+        }
+    except LiveTVConfigError as exc:
+        return {"ok": False, "message": str(exc)}
+    except urllib.error.HTTPError as exc:
+        return {"ok": False, "message": f"The source returned HTTP {exc.code}."}
+    except (TimeoutError, socket.timeout):
+        return {"ok": False, "message": "The source check timed out."}
+    except Exception:
+        return {"ok": False, "message": "The source could not be reached or safely inspected."}
 
 
 def _normalize_source(raw_source: Any, channel_name: str, source_index: int) -> dict[str, str]:

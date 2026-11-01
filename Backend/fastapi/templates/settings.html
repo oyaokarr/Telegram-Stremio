@@ -272,17 +272,49 @@
     <!-- ── Live TV ─────────────────────────────────────────────────────── -->
     <div class="settings-card">
         <h2><i class="fa-solid fa-tv"></i> Live TV Channels</h2>
-        <label class="s-label" for="live_tv_channels">Channels</label>
-        <textarea id="live_tv_channels" class="s-input" rows="6" spellcheck="false"
-            placeholder="TRT Haber | https://tv-trthaber.medya.trt.com.tr/master.m3u8 | https://behzatamir.orkestr.run/static/channel-logos/trt-haber-card.png | Live news from Turkey and the world | Adaptive main stream"></textarea>
-        <p class="hint" style="margin-top:0.6rem">
-            One source per line: <strong>Channel name | official YouTube or direct HTTPS .m3u8 URL | logo URL (optional) | description (optional) | source label (optional)</strong>.
-            To show alternate sources for one channel, repeat the same channel name on another line. Nuvio will show each source label separately.
+        <div class="grid-2" style="gap:0.85rem">
+            <div>
+                <label class="s-label" for="live_tv_editor_name">Channel name</label>
+                <input id="live_tv_editor_name" class="s-input" maxlength="100" placeholder="TRT Haber">
+            </div>
+            <div>
+                <label class="s-label" for="live_tv_editor_source">Stream URL</label>
+                <input id="live_tv_editor_source" class="s-input" type="url" placeholder="https://.../master.m3u8 or YouTube Live URL">
+            </div>
+            <div>
+                <label class="s-label" for="live_tv_editor_source_label">Source label</label>
+                <input id="live_tv_editor_source_label" class="s-input" maxlength="100" placeholder="Adaptive main stream / 360p backup">
+            </div>
+            <div>
+                <label class="s-label" for="live_tv_editor_logo">Channel logo URL</label>
+                <input id="live_tv_editor_logo" class="s-input" type="url" placeholder="https://.../logo.png (optional)">
+            </div>
+        </div>
+        <div style="margin-top:.85rem">
+            <label class="s-label" for="live_tv_editor_description">Channel description</label>
+            <textarea id="live_tv_editor_description" class="s-input" rows="2" maxlength="500" placeholder="A short description shown in Nuvio"></textarea>
+        </div>
+        <div class="add-row" style="margin-top:.85rem;flex-wrap:wrap">
+            <button id="live_tv_test_btn" type="button" class="add-btn" onclick="testLiveTvSource()"><i class="fa-solid fa-plug-circle-check"></i> Test source</button>
+            <button type="button" class="add-btn" onclick="addLiveTvSourceToConfig()"><i class="fa-solid fa-plus"></i> Add source</button>
+            <button id="live_tv_save_btn" type="button" class="add-btn" onclick="saveLiveTvChannels()"><i class="fa-solid fa-floppy-disk"></i> Save TV channels</button>
+        </div>
+        <p id="live_tv_test_status" class="hint" aria-live="polite" style="margin-top:.65rem"></p>
+        <button id="live_tv_use_thumbnail" type="button" class="add-btn" style="display:none;margin-top:.35rem" onclick="useLiveTvTestThumbnail()">Use YouTube thumbnail as logo</button>
+        <div id="live_tv_channels_preview" class="hint" aria-live="polite" style="margin-top:.85rem"></div>
+        <p class="hint" style="margin-top:.6rem">
+            Add another source for the same channel by keeping its name/logo/description and entering a different source URL and label. The test checks HTTPS HLS playlist access and quality variants; YouTube tests public title/thumbnail metadata but cannot guarantee that Nuvio will play it.
         </p>
         <p class="hint" style="margin-top:0.35rem">
-            Example: <code>TRT Haber | https://tv-trthaber.medya.trt.com.tr/master.m3u8 | https://behzatamir.orkestr.run/static/channel-logos/trt-haber-card.png | Live news from Turkey and the world | Adaptive main stream</code><br>
-            YouTube links are passed to Nuvio as video IDs. Use only sources you are authorized to use.
+            Channel logo and description are supported as channel metadata. A full programme schedule (EPG) is separate and requires an authorized XMLTV feed; no schedule data is guessed.
         </p>
+        <details style="margin-top:.7rem">
+            <summary class="hint" style="cursor:pointer">Advanced: edit the raw channel list</summary>
+            <label class="s-label" for="live_tv_channels" style="margin-top:.75rem">One source per line: name | URL | logo | description | source label</label>
+            <textarea id="live_tv_channels" class="s-input" rows="6" spellcheck="false"
+                placeholder="TRT Haber | https://tv-trthaber.medya.trt.com.tr/master.m3u8 | https://behzatamir.orkestr.run/static/channel-logos/trt-haber-card.png | Live news from Turkey and the world | Adaptive main stream"></textarea>
+            <p class="hint" style="margin-top:.45rem">Repeat the same channel name for alternate sources. Only add streams you are authorized to use.</p>
+        </details>
     </div>
 
     <!-- ── Authentication ──────────────────────────────────────────────── -->
@@ -1664,6 +1696,123 @@ function capitalize(str) {
     return str.charAt(0).toUpperCase() + str.slice(1).replace(/_/g, ' ');
 }
 
+function renderLiveTvPreview(channels) {
+    const preview = document.getElementById('live_tv_channels_preview');
+    if (!preview) return;
+    preview.replaceChildren();
+    if (!Array.isArray(channels) || channels.length === 0) {
+        preview.textContent = 'No live TV channels configured yet.';
+        return;
+    }
+    for (const channel of channels) {
+        const sources = Array.isArray(channel.sources) && channel.sources.length
+            ? channel.sources.length : (channel.source ? 1 : 0);
+        const row = document.createElement('div');
+        row.textContent = `${channel.name || 'Unnamed channel'} — ${sources} source(s)`
+            + (channel.logo ? ' · logo set' : '')
+            + (channel.description ? ' · description set' : '');
+        preview.appendChild(row);
+    }
+}
+
+function addLiveTvSourceToConfig() {
+    const name = document.getElementById('live_tv_editor_name').value.trim();
+    const source = document.getElementById('live_tv_editor_source').value.trim();
+    const sourceLabel = document.getElementById('live_tv_editor_source_label').value.trim();
+    const logo = document.getElementById('live_tv_editor_logo').value.trim();
+    const description = document.getElementById('live_tv_editor_description').value.trim();
+    const textarea = document.getElementById('live_tv_channels');
+    const status = document.getElementById('live_tv_test_status');
+    if (!name || !source) {
+        alert('Enter a channel name and stream URL first.');
+        return;
+    }
+    const duplicate = textarea.value.split(/\r?\n/).some(line => {
+        const parts = line.split('|').map(part => part.trim());
+        return parts[0]?.toLocaleLowerCase() === name.toLocaleLowerCase() && parts[1] === source;
+    });
+    if (duplicate) {
+        alert('This exact source is already in the channel list.');
+        return;
+    }
+    const newLine = [name, source, logo, description, sourceLabel].join(' | ');
+    textarea.value = textarea.value.trim()
+        ? `${textarea.value.trimEnd()}\n${newLine}` : newLine;
+    const channels = collectLiveTvChannels();
+    if (channels !== null) renderLiveTvPreview(channels);
+    document.getElementById('live_tv_editor_source').value = '';
+    document.getElementById('live_tv_editor_source_label').value = '';
+    status.textContent = `Source added for ${name}. Tap “Save TV channels” to apply it.`;
+    document.getElementById('live_tv_use_thumbnail').style.display = 'none';
+}
+
+async function testLiveTvSource() {
+    const source = document.getElementById('live_tv_editor_source').value.trim();
+    const button = document.getElementById('live_tv_test_btn');
+    const status = document.getElementById('live_tv_test_status');
+    const thumbnailButton = document.getElementById('live_tv_use_thumbnail');
+    if (!source) {
+        alert('Enter a stream URL to test.');
+        return;
+    }
+    button.disabled = true;
+    status.textContent = 'Testing source…';
+    thumbnailButton.style.display = 'none';
+    window.liveTvTestData = null;
+    try {
+        const response = await fetch('/api/admin/live-tv/test-source', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ source }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
+        window.liveTvTestData = data;
+        status.textContent = data.message || (data.ok ? 'Source check passed.' : 'Source check failed.');
+        status.style.color = data.ok ? 'var(--success, #22c55e)' : 'var(--danger, #ef4444)';
+        if (data.kind === 'youtube') {
+            const nameField = document.getElementById('live_tv_editor_name');
+            if (!nameField.value.trim() && data.author_name) nameField.value = data.author_name;
+            if (data.title) status.textContent += ` YouTube title: ${data.title}.`;
+            if (data.thumbnail_url) thumbnailButton.style.display = 'inline-flex';
+        }
+    } catch (error) {
+        status.textContent = `Source test failed: ${error.message}`;
+        status.style.color = 'var(--danger, #ef4444)';
+    } finally {
+        button.disabled = false;
+    }
+}
+
+function useLiveTvTestThumbnail() {
+    const url = window.liveTvTestData?.thumbnail_url || '';
+    if (!url.startsWith('https://')) return;
+    document.getElementById('live_tv_editor_logo').value = url;
+    document.getElementById('live_tv_test_status').textContent += ' Video thumbnail set as the logo; replace it with an official channel logo if preferred.';
+}
+
+async function saveLiveTvChannels() {
+    const channels = collectLiveTvChannels();
+    if (channels === null) return;
+    const button = document.getElementById('live_tv_save_btn');
+    button.disabled = true;
+    try {
+        const response = await fetch('/api/admin/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ live_tv_channels: channels }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
+        await refreshSettingsFromServer();
+        showToast('Live TV channels saved. Movie and series settings were not changed.', 'success', 'Saved');
+    } catch (error) {
+        alert(`Could not save live TV channels: ${error.message}`);
+    } finally {
+        button.disabled = false;
+    }
+}
+
 function collectLiveTvChannels() {
     const textarea = document.getElementById('live_tv_channels');
     if (!textarea) return [];
@@ -1775,6 +1924,7 @@ function renderSettings(s) {
     document.getElementById('upstream_repo').value = s.upstream_repo || '';
     document.getElementById('upstream_branch').value = s.upstream_branch || '';
     document.getElementById('live_tv_channels').value = formatLiveTvChannels(s.live_tv_channels || []);
+    renderLiveTvPreview(s.live_tv_channels || []);
     document.getElementById('subscription_group_id').value = s.subscription_group_id || 0;
     document.getElementById('http_proxy_url').value = s.http_proxy_url || '';
     document.getElementById('mediaflow_proxy').checked = !!s.mediaflow_proxy;
