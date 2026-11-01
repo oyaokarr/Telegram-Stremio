@@ -361,3 +361,16 @@ def live_channel_stream(channel: dict[str, Any]) -> dict[str, Any]:
     """Backward-compatible first stream helper for callers expecting one source."""
     streams = live_channel_streams(channel)
     return streams[0] if streams else {}
+
+
+def live_tv_logo_extension(data: bytes) -> str | None:
+    """Return a safe raster-image extension based on file signatures, not its filename."""
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return ".png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return ".jpg"
+    if data.startswith((b"GIF87a", b"GIF89a")):
+        return ".gif"
+    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return ".webp"
+    return None

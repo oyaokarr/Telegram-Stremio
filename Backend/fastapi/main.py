@@ -1,12 +1,16 @@
 import asyncio
+from pathlib import Path
+from uuid import uuid4
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from Backend import __version__
+from Backend.helper.live_tv import live_tv_logo_extension
+from Backend.helper.settings_manager import SettingsManager
 from Backend.fastapi.themes import DEFAULT_THEME, DEFAULT_STYLE, get_theme
 from Backend.fastapi.routes.api_routes import (
     add_custom_catalog_item_api,
@@ -690,6 +694,29 @@ async def get_settings(_: bool = Depends(require_auth)):
 @app.post("/api/admin/live-tv/test-source")
 async def test_live_tv_source(payload: dict, _: bool = Depends(require_auth)):
     return await test_live_tv_source_api(payload)
+
+
+@app.post("/api/admin/live-tv/upload-logo")
+async def upload_live_tv_logo(file: UploadFile = File(...), _: bool = Depends(require_auth)):
+    max_bytes = 4 * 1024 * 1024
+    data = await file.read(max_bytes + 1)
+    if len(data) > max_bytes:
+        raise HTTPException(status_code=413, detail="Logo image must be 4 MB or smaller.")
+    extension = live_tv_logo_extension(data)
+    if not extension:
+        raise HTTPException(status_code=415, detail="Choose a PNG, JPG, GIF, or WebP image. SVG files are not supported.")
+
+    logo_dir = Path(__file__).resolve().parent / "static" / "channel-logos" / "uploads"
+    logo_dir.mkdir(parents=True, exist_ok=True)
+    filename = f"{uuid4().hex}{extension}"
+    destination = logo_dir / filename
+    await asyncio.to_thread(destination.write_bytes, data)
+
+    base_url = str(SettingsManager.current().base_url or "").rstrip("/")
+    if not base_url.startswith("https://"):
+        destination.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail="Server HTTPS base URL is not configured.")
+    return {"url": f"{base_url}/static/channel-logos/uploads/{filename}"}
 
 @app.put("/api/admin/settings")
 async def update_settings(payload: dict, _: bool = Depends(require_auth)):

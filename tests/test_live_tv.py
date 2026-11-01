@@ -18,6 +18,7 @@ live_channel_streams = _LIVE_TV.live_channel_streams
 normalize_live_tv_channels = _LIVE_TV.normalize_live_tv_channels
 probe_live_tv_source = _LIVE_TV.probe_live_tv_source
 youtube_video_id = _LIVE_TV.youtube_video_id
+live_tv_logo_extension = _LIVE_TV.live_tv_logo_extension
 
 
 class LiveTVTests(unittest.TestCase):
@@ -134,6 +135,14 @@ class LiveTVTests(unittest.TestCase):
     def test_probe_refuses_private_ip_destinations(self):
         with self.assertRaises(LiveTVConfigError):
             _LIVE_TV._assert_public_https_url("https://127.0.0.1/live.m3u8")
+
+    def test_gallery_logo_upload_accepts_only_supported_raster_signatures(self):
+        self.assertEqual(live_tv_logo_extension(b"\x89PNG\r\n\x1a\nrest"), ".png")
+        self.assertEqual(live_tv_logo_extension(b"\xff\xd8\xffrest"), ".jpg")
+        self.assertEqual(live_tv_logo_extension(b"GIF89arest"), ".gif")
+        self.assertEqual(live_tv_logo_extension(b"RIFF0000WEBPrest"), ".webp")
+        self.assertIsNone(live_tv_logo_extension(b"<svg xmlns='http://www.w3.org/2000/svg'>"))
+        self.assertIsNone(live_tv_logo_extension(b"not an image"))
 
     def test_duplicate_channel_ids_are_rejected(self):
         with self.assertRaises(LiveTVConfigError):
