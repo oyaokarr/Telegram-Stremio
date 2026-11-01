@@ -271,49 +271,50 @@
 
     <!-- ── Live TV ─────────────────────────────────────────────────────── -->
     <div class="settings-card">
-        <h2><i class="fa-solid fa-tv"></i> Live TV Channels</h2>
+        <h2><i class="fa-solid fa-tv"></i> Canlı TV Kanalları</h2>
+        <p class="hint" style="margin:.3rem 0 1rem">Eklediğin kanallar aşağıda kartlar halinde görünür. Kanalı silmek için kartındaki <strong>Sil</strong> düğmesine bas; silme hemen kaydedilir. Bir kanala birden fazla yayın adresi ekleyebilirsin.</p>
         <div class="grid-2" style="gap:0.85rem">
             <div>
-                <label class="s-label" for="live_tv_editor_name">Channel name</label>
+                <label class="s-label" for="live_tv_editor_name">Kanal adı</label>
                 <input id="live_tv_editor_name" class="s-input" maxlength="100" placeholder="TRT Haber">
             </div>
             <div>
-                <label class="s-label" for="live_tv_editor_source">Stream URL</label>
-                <input id="live_tv_editor_source" class="s-input" type="url" placeholder="https://.../master.m3u8 or YouTube Live URL">
+                <label class="s-label" for="live_tv_editor_source">Yayın bağlantısı</label>
+                <input id="live_tv_editor_source" class="s-input" type="url" placeholder="https://.../master.m3u8 veya YouTube canlı yayın adresi">
             </div>
             <div>
-                <label class="s-label" for="live_tv_editor_source_label">Source label</label>
-                <input id="live_tv_editor_source_label" class="s-input" maxlength="100" placeholder="Adaptive main stream / 360p backup">
+                <label class="s-label" for="live_tv_editor_source_label">Yayın adı (isteğe bağlı)</label>
+                <input id="live_tv_editor_source_label" class="s-input" maxlength="100" placeholder="Ana yayın / Düşük internet yedeği">
             </div>
             <div>
-                <label class="s-label" for="live_tv_editor_logo">Channel logo URL</label>
-                <input id="live_tv_editor_logo" class="s-input" type="url" placeholder="https://.../logo.png (optional)">
+                <label class="s-label" for="live_tv_editor_logo">Kanal logosu (resim bağlantısı, isteğe bağlı)</label>
+                <input id="live_tv_editor_logo" class="s-input" type="url" placeholder="https://.../logo.png" oninput="updateLiveTvLogoPreview()">
+                <p class="hint" style="margin:.35rem 0 0">Buraya kanalın web sitesi değil, logonun doğrudan HTTPS resim adresi girilir (PNG/JPG/WebP). Resmi tarayıcıda açıp “Resim adresini kopyala” seçeneğiyle alabilirsin. YouTube yayınıysa önce <strong>Kaynağı test et</strong>, sonra çıkan küçük resmi logo olarak kullanabilirsin.</p>
+                <div id="live_tv_logo_preview" style="display:none;align-items:center;gap:.6rem;margin-top:.55rem"><img id="live_tv_logo_preview_img" alt="Logo önizlemesi" style="width:42px;height:42px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,.08);padding:3px"><span class="hint">Logo önizlemesi</span></div>
             </div>
         </div>
         <div style="margin-top:.85rem">
-            <label class="s-label" for="live_tv_editor_description">Channel description</label>
-            <textarea id="live_tv_editor_description" class="s-input" rows="2" maxlength="500" placeholder="A short description shown in Nuvio"></textarea>
+            <label class="s-label" for="live_tv_editor_description">Kanal açıklaması</label>
+            <textarea id="live_tv_editor_description" class="s-input" rows="2" maxlength="500" placeholder="Nuvio'da kanalın yanında görünecek kısa açıklama"></textarea>
         </div>
         <div class="add-row" style="margin-top:.85rem;flex-wrap:wrap">
-            <button id="live_tv_test_btn" type="button" class="add-btn" onclick="testLiveTvSource()"><i class="fa-solid fa-plug-circle-check"></i> Test source</button>
-            <button type="button" class="add-btn" onclick="addLiveTvSourceToConfig()"><i class="fa-solid fa-plus"></i> Add source</button>
-            <button id="live_tv_save_btn" type="button" class="add-btn" onclick="saveLiveTvChannels()"><i class="fa-solid fa-floppy-disk"></i> Save TV channels</button>
+            <button id="live_tv_test_btn" type="button" class="add-btn" onclick="testLiveTvSource()"><i class="fa-solid fa-plug-circle-check"></i> Kaynağı test et</button>
+            <button id="live_tv_add_source_btn" type="button" class="add-btn" onclick="addLiveTvSourceToConfig()"><i class="fa-solid fa-plus"></i> Kanal/kaynak ekle</button>
+            <button id="live_tv_update_channel_btn" type="button" class="add-btn" style="display:none" onclick="updateLiveTvChannel()"><i class="fa-solid fa-floppy-disk"></i> Kanal bilgilerini güncelle</button>
+            <button id="live_tv_cancel_edit_btn" type="button" class="add-btn" style="display:none" onclick="cancelLiveTvEdit()"><i class="fa-solid fa-xmark"></i> Düzenlemeyi iptal et</button>
+            <button id="live_tv_save_btn" type="button" class="add-btn" onclick="saveLiveTvChannels()"><i class="fa-solid fa-floppy-disk"></i> Değişiklikleri kaydet</button>
         </div>
         <p id="live_tv_test_status" class="hint" aria-live="polite" style="margin-top:.65rem"></p>
-        <button id="live_tv_use_thumbnail" type="button" class="add-btn" style="display:none;margin-top:.35rem" onclick="useLiveTvTestThumbnail()">Use YouTube thumbnail as logo</button>
-        <div id="live_tv_channels_preview" class="hint" aria-live="polite" style="margin-top:.85rem"></div>
-        <p class="hint" style="margin-top:.6rem">
-            Add another source for the same channel by keeping its name/logo/description and entering a different source URL and label. The test checks HTTPS HLS playlist access and quality variants; YouTube tests public title/thumbnail metadata but cannot guarantee that Nuvio will play it.
-        </p>
-        <p class="hint" style="margin-top:0.35rem">
-            Channel logo and description are supported as channel metadata. A full programme schedule (EPG) is separate and requires an authorized XMLTV feed; no schedule data is guessed.
-        </p>
+        <button id="live_tv_use_thumbnail" type="button" class="add-btn" style="display:none;margin-top:.35rem" onclick="useLiveTvTestThumbnail()">YouTube küçük resmini logo yap</button>
+        <h3 style="margin:1.2rem 0 .55rem">Eklediğin kanallar</h3>
+        <div id="live_tv_channels_preview" aria-live="polite" style="display:grid;gap:.65rem"></div>
+        <p class="hint" style="margin-top:.75rem">Başka bir yayın eklemek için aynı kanal adını yazıp farklı bir bağlantı ve yayın adı gir. Kaynak testi HLS listesini denetler; yayın parçalarını indirmez. YouTube bağlantısının tanınması, Nuvio'da oynayacağını garanti etmez. EPG/program akışı bu ekrandan bağımsızdır.</p>
         <details style="margin-top:.7rem">
-            <summary class="hint" style="cursor:pointer">Advanced: edit the raw channel list</summary>
-            <label class="s-label" for="live_tv_channels" style="margin-top:.75rem">One source per line: name | URL | logo | description | source label</label>
+            <summary class="hint" style="cursor:pointer">Gelişmiş: ham kanal listesini düzenle</summary>
+            <label class="s-label" for="live_tv_channels" style="margin-top:.75rem">Her satır: kanal adı | yayın URL'si | logo URL'si | açıklama | yayın adı</label>
             <textarea id="live_tv_channels" class="s-input" rows="6" spellcheck="false"
                 placeholder="TRT Haber | https://tv-trthaber.medya.trt.com.tr/master.m3u8 | https://behzatamir.orkestr.run/static/channel-logos/trt-haber-card.png | Live news from Turkey and the world | Adaptive main stream"></textarea>
-            <p class="hint" style="margin-top:.45rem">Repeat the same channel name for alternate sources. Only add streams you are authorized to use.</p>
+            <p class="hint" style="margin-top:.45rem">Yedek kaynak eklemek için aynı kanal adını tekrarla. Yalnızca kullanmaya yetkili olduğun yayınları ekle.</p>
         </details>
     </div>
 
@@ -1701,21 +1702,188 @@ function renderLiveTvPreview(channels) {
     if (!preview) return;
     preview.replaceChildren();
     if (!Array.isArray(channels) || channels.length === 0) {
-        preview.textContent = 'No live TV channels configured yet.';
+        const empty = document.createElement('p');
+        empty.className = 'hint';
+        empty.textContent = 'Henüz kanal eklenmemiş. Yukarıdaki formdan ilk kanalını ekleyebilirsin.';
+        preview.appendChild(empty);
         return;
     }
     for (const channel of channels) {
         const sources = Array.isArray(channel.sources) && channel.sources.length
-            ? channel.sources.length : (channel.source ? 1 : 0);
-        const row = document.createElement('div');
-        row.textContent = `${channel.name || 'Unnamed channel'} — ${sources} source(s)`
-            + (channel.logo ? ' · logo set' : '')
-            + (channel.description ? ' · description set' : '');
-        preview.appendChild(row);
+            ? channel.sources : (channel.source ? [{name: channel.source_name || '', source: channel.source}] : []);
+        const card = document.createElement('article');
+        card.style.cssText = 'display:flex;gap:.8rem;align-items:flex-start;padding:.8rem;border:1px solid var(--border,rgba(255,255,255,.12));border-radius:12px;background:var(--card-bg,rgba(255,255,255,.025))';
+        const logo = document.createElement('img');
+        logo.alt = '';
+        logo.loading = 'lazy';
+        logo.style.cssText = 'width:54px;height:54px;flex:0 0 54px;object-fit:contain;border-radius:10px;background:rgba(255,255,255,.08);padding:4px';
+        if (channel.logo) {
+            logo.src = channel.logo;
+            logo.onerror = () => { logo.style.display = 'none'; };
+        } else {
+            logo.style.display = 'none';
+        }
+        card.appendChild(logo);
+
+        const body = document.createElement('div');
+        body.style.cssText = 'min-width:0;flex:1';
+        const top = document.createElement('div');
+        top.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap';
+        const title = document.createElement('strong');
+        title.textContent = channel.name || 'İsimsiz kanal';
+        top.appendChild(title);
+        const actions = document.createElement('div');
+        actions.style.cssText = 'display:flex;gap:.4rem;flex-wrap:wrap';
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'add-btn';
+        edit.innerHTML = '<i class="fa-solid fa-pen"></i> Düzenle';
+        edit.addEventListener('click', () => editLiveTvChannel(channel));
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'add-btn';
+        remove.style.cssText = 'background:var(--danger,#b91c1c);border-color:var(--danger,#b91c1c)';
+        remove.innerHTML = '<i class="fa-solid fa-trash"></i> Sil';
+        remove.addEventListener('click', () => deleteLiveTvChannel(channel));
+        actions.append(edit, remove);
+        top.appendChild(actions);
+        body.appendChild(top);
+
+        const details = document.createElement('p');
+        details.className = 'hint';
+        details.style.margin = '.25rem 0 .4rem';
+        details.textContent = `${sources.length} yayın kaynağı${channel.logo ? ' · logo var' : ' · logo eklenmemiş'}${channel.description ? ' · açıklama var' : ''}`;
+        body.appendChild(details);
+        if (channel.description) {
+            const description = document.createElement('p');
+            description.className = 'hint';
+            description.style.margin = '0 0 .45rem';
+            description.textContent = channel.description;
+            body.appendChild(description);
+        }
+        const list = document.createElement('div');
+        list.style.cssText = 'display:grid;gap:.2rem';
+        sources.forEach((source, index) => {
+            const item = document.createElement('div');
+            item.className = 'hint';
+            item.style.cssText = 'overflow-wrap:anywhere;font-size:.78rem';
+            const label = source.name || `Kaynak ${index + 1}`;
+            item.textContent = `${label}: ${source.source || source.url || ''}`;
+            list.appendChild(item);
+        });
+        body.appendChild(list);
+        card.appendChild(body);
+        preview.appendChild(card);
     }
 }
 
+function liveTvNameKey(name) {
+    return String(name || '').trim().toLocaleLowerCase('tr-TR').replace(/\s+/g, ' ');
+}
+
+function setLiveTvEditMode(active) {
+    document.getElementById('live_tv_add_source_btn').style.display = active ? 'none' : 'inline-flex';
+    document.getElementById('live_tv_update_channel_btn').style.display = active ? 'inline-flex' : 'none';
+    document.getElementById('live_tv_cancel_edit_btn').style.display = active ? 'inline-flex' : 'none';
+    document.getElementById('live_tv_editor_source').disabled = active;
+    document.getElementById('live_tv_editor_source_label').disabled = active;
+}
+
+function editLiveTvChannel(channel) {
+    window.liveTvEditingChannel = channel.name;
+    document.getElementById('live_tv_editor_name').value = channel.name || '';
+    document.getElementById('live_tv_editor_logo').value = channel.logo || '';
+    document.getElementById('live_tv_editor_description').value = channel.description || '';
+    const source = (channel.sources || [])[0] || {};
+    document.getElementById('live_tv_editor_source').value = source.source || channel.source || '';
+    document.getElementById('live_tv_editor_source_label').value = source.name || '';
+    setLiveTvEditMode(true);
+    updateLiveTvLogoPreview();
+    document.getElementById('live_tv_test_status').textContent = `“${channel.name}” düzenleme modunda. Bilgileri değiştir; yayın adresleri korunur.`;
+    document.getElementById('live_tv_editor_name').scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+
+function cancelLiveTvEdit() {
+    window.liveTvEditingChannel = null;
+    setLiveTvEditMode(false);
+    document.getElementById('live_tv_editor_name').value = '';
+    document.getElementById('live_tv_editor_source').value = '';
+    document.getElementById('live_tv_editor_source_label').value = '';
+    document.getElementById('live_tv_editor_logo').value = '';
+    document.getElementById('live_tv_editor_description').value = '';
+    document.getElementById('live_tv_test_status').textContent = '';
+    updateLiveTvLogoPreview();
+}
+
+function updateLiveTvChannel() {
+    const oldName = window.liveTvEditingChannel;
+    const name = document.getElementById('live_tv_editor_name').value.trim();
+    const logo = document.getElementById('live_tv_editor_logo').value.trim();
+    const description = document.getElementById('live_tv_editor_description').value.trim();
+    if (!oldName || !name) { alert('Kanal adı boş bırakılamaz.'); return; }
+    if ([name, logo, description].some(value => value.includes('|'))) {
+        alert('Kanal adı, logo bağlantısı veya açıklama | karakteri içeremez.'); return;
+    }
+    const textarea = document.getElementById('live_tv_channels');
+    const oldKey = liveTvNameKey(oldName);
+    const newKey = liveTvNameKey(name);
+    const lines = textarea.value.split(/\r?\n/);
+    const existingNames = new Set(lines.map(line => line.split('|')[0]?.trim()).filter(Boolean).map(liveTvNameKey));
+    if (newKey !== oldKey && existingNames.has(newKey)) {
+        alert('Bu isimde başka bir kanal zaten var.'); return;
+    }
+    textarea.value = lines.map(line => {
+        const parts = line.split('|').map(part => part.trim());
+        if (liveTvNameKey(parts[0]) !== oldKey || parts.length < 2) return line;
+        while (parts.length < 5) parts.push('');
+        parts[0] = name;
+        parts[2] = logo;
+        parts[3] = description;
+        return parts.join(' | ');
+    }).join('\n');
+    window.liveTvEditingChannel = null;
+    setLiveTvEditMode(false);
+    document.getElementById('live_tv_editor_name').value = '';
+    document.getElementById('live_tv_editor_source').value = '';
+    document.getElementById('live_tv_editor_source_label').value = '';
+    document.getElementById('live_tv_editor_logo').value = '';
+    document.getElementById('live_tv_editor_description').value = '';
+    updateLiveTvLogoPreview();
+    const channels = collectLiveTvChannels();
+    if (channels !== null) renderLiveTvPreview(channels);
+    document.getElementById('live_tv_test_status').textContent = `“${name}” bilgileri güncellendi. Sunucuya uygulamak için “Değişiklikleri kaydet” düğmesine bas.`;
+}
+
+async function deleteLiveTvChannel(channel) {
+    const sourceCount = (channel.sources || []).length || (channel.source ? 1 : 0);
+    if (!confirm(`“${channel.name}” kanalını ve ${sourceCount} yayın kaynağını silip sunucuya kaydedeyim mi?`)) return;
+    const textarea = document.getElementById('live_tv_channels');
+    const previous = textarea.value;
+    const key = liveTvNameKey(channel.name);
+    textarea.value = previous.split(/\r?\n/).filter(line => liveTvNameKey(line.split('|')[0]) !== key).join('\n');
+    const channels = collectLiveTvChannels();
+    if (channels === null) { textarea.value = previous; return; }
+    renderLiveTvPreview(channels);
+    const saved = await saveLiveTvChannels();
+    if (!saved) {
+        textarea.value = previous;
+        const restored = collectLiveTvChannels();
+        if (restored !== null) renderLiveTvPreview(restored);
+        return;
+    }
+    if (window.liveTvEditingChannel && liveTvNameKey(window.liveTvEditingChannel) === key) cancelLiveTvEdit();
+}
+
+function updateLiveTvLogoPreview() {
+    const url = document.getElementById('live_tv_editor_logo').value.trim();
+    const wrap = document.getElementById('live_tv_logo_preview');
+    const image = document.getElementById('live_tv_logo_preview_img');
+    wrap.style.display = url.startsWith('https://') ? 'flex' : 'none';
+    if (url.startsWith('https://')) image.src = url;
+}
+
 function addLiveTvSourceToConfig() {
+    if (window.liveTvEditingChannel) { alert('Önce kanal düzenlemesini güncelle veya iptal et.'); return; }
     const name = document.getElementById('live_tv_editor_name').value.trim();
     const source = document.getElementById('live_tv_editor_source').value.trim();
     const sourceLabel = document.getElementById('live_tv_editor_source_label').value.trim();
@@ -1724,7 +1892,11 @@ function addLiveTvSourceToConfig() {
     const textarea = document.getElementById('live_tv_channels');
     const status = document.getElementById('live_tv_test_status');
     if (!name || !source) {
-        alert('Enter a channel name and stream URL first.');
+        alert('Önce kanal adını ve yayın bağlantısını gir.');
+        return;
+    }
+    if ([name, logo, description, sourceLabel].some(value => value.includes('|'))) {
+        alert('Kanal bilgileri | karakteri içeremez.');
         return;
     }
     const duplicate = textarea.value.split(/\r?\n/).some(line => {
@@ -1732,7 +1904,7 @@ function addLiveTvSourceToConfig() {
         return parts[0]?.toLocaleLowerCase() === name.toLocaleLowerCase() && parts[1] === source;
     });
     if (duplicate) {
-        alert('This exact source is already in the channel list.');
+        alert('Bu yayın adresi kanala zaten eklenmiş.');
         return;
     }
     const newLine = [name, source, logo, description, sourceLabel].join(' | ');
@@ -1742,7 +1914,7 @@ function addLiveTvSourceToConfig() {
     if (channels !== null) renderLiveTvPreview(channels);
     document.getElementById('live_tv_editor_source').value = '';
     document.getElementById('live_tv_editor_source_label').value = '';
-    status.textContent = `Source added for ${name}. Tap “Save TV channels” to apply it.`;
+    status.textContent = `${name} kanalına kaynak eklendi. Sunucuya uygulamak için “Değişiklikleri kaydet” düğmesine bas.`;
     document.getElementById('live_tv_use_thumbnail').style.display = 'none';
 }
 
@@ -1788,12 +1960,13 @@ function useLiveTvTestThumbnail() {
     const url = window.liveTvTestData?.thumbnail_url || '';
     if (!url.startsWith('https://')) return;
     document.getElementById('live_tv_editor_logo').value = url;
-    document.getElementById('live_tv_test_status').textContent += ' Video thumbnail set as the logo; replace it with an official channel logo if preferred.';
+    updateLiveTvLogoPreview();
+    document.getElementById('live_tv_test_status').textContent += ' YouTube küçük resmi logo olarak seçildi; istersen resmi kanal logosuyla değiştirebilirsin.';
 }
 
 async function saveLiveTvChannels() {
     const channels = collectLiveTvChannels();
-    if (channels === null) return;
+    if (channels === null) return false;
     const button = document.getElementById('live_tv_save_btn');
     button.disabled = true;
     try {
@@ -1805,9 +1978,11 @@ async function saveLiveTvChannels() {
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
         await refreshSettingsFromServer();
-        showToast('Live TV channels saved. Movie and series settings were not changed.', 'success', 'Saved');
+        showToast('Canlı TV kanalları kaydedildi. Film ve dizi ayarları değiştirilmedi.', 'success', 'Kaydedildi');
+        return true;
     } catch (error) {
-        alert(`Could not save live TV channels: ${error.message}`);
+        alert(`Canlı TV kanalları kaydedilemedi: ${error.message}`);
+        return false;
     } finally {
         button.disabled = false;
     }
