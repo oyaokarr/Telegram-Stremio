@@ -121,6 +121,34 @@ class LiveTVTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual(result["kind"], "hls")
         self.assertEqual(result["variants"], ["640x360", "1280x720"])
+        self.assertEqual(
+            [variant["source"] for variant in result["variant_sources"]],
+            ["https://media.example.org/low.m3u8", "https://media.example.org/high.m3u8"],
+        )
+        self.assertEqual([variant["name"] for variant in result["variant_sources"]], ["360p", "720p"])
+        self.assertEqual([variant["bandwidth"] for variant in result["variant_sources"]], [800000, 2500000])
+
+    def test_hls_variant_resolution_uses_final_redirect_url_and_skips_non_https(self):
+        playlist = (
+            b"#EXTM3U\n"
+            b"#EXT-X-STREAM-INF:BANDWIDTH=5400000,RESOLUTION=1920x1080\n"
+            b"variants/fullhd.m3u8\n"
+            b"#EXT-X-STREAM-INF:BANDWIDTH=700000,RESOLUTION=640x360\n"
+            b"http://insecure.example.org/low.m3u8\n"
+        )
+        with patch.object(
+            _LIVE_TV,
+            "_fetch_small_public_response",
+            return_value=(200, "https://cdn.example.org/live/master.m3u8", "application/x-mpegURL", playlist),
+        ):
+            result = probe_live_tv_source("https://media.example.org/start.m3u8")
+        self.assertTrue(result["ok"])
+        self.assertEqual(len(result["variant_sources"]), 1)
+        self.assertEqual(result["variant_sources"][0]["name"], "1080p")
+        self.assertEqual(
+            result["variant_sources"][0]["source"],
+            "https://cdn.example.org/live/variants/fullhd.m3u8",
+        )
 
     def test_youtube_source_probe_returns_public_oembed_metadata(self):
         payload = {"title": "Live news", "author_name": "Example News", "thumbnail_url": "https://i.ytimg.com/vi/XPy9T3ePqoQ/hqdefault.jpg"}

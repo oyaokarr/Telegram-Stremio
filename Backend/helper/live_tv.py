@@ -127,6 +127,46 @@ def _fetch_small_public_response(url: str) -> tuple[int, str, str, bytes]:
         return response.status, response.geturl(), response.headers.get("Content-Type", ""), body
 
 
+def _parse_hls_master_variants(text: str, master_url: str) -> list[dict[str, Any]]:
+    """Extract selectable variant playlist URLs from an HLS master playlist."""
+    lines = text.splitlines()
+    variants: list[dict[str, Any]] = []
+    seen_urls: set[str] = set()
+    for index, line in enumerate(lines):
+        line = line.strip()
+        if not line.upper().startswith("#EXT-X-STREAM-INF:"):
+            continue
+        attributes = line.split(":", 1)[1]
+        resolution_match = re.search(r"(?:^|,)RESOLUTION=([0-9]{2,5})x([0-9]{2,5})(?:,|$)", attributes, re.I)
+        bandwidth_match = re.search(r"(?:^|,)(?:AVERAGE-BANDWIDTH|BANDWIDTH)=([0-9]+)(?:,|$)", attributes, re.I)
+        uri = next((candidate.strip() for candidate in lines[index + 1:] if candidate.strip() and not candidate.lstrip().startswith("#")), "")
+        if not uri:
+            continue
+        variant_url = urljoin(master_url, uri)
+        if not _valid_https_url(variant_url) or not urlparse(variant_url).path.lower().endswith(".m3u8"):
+            continue
+        if variant_url in seen_urls:
+            continue
+        seen_urls.add(variant_url)
+
+        resolution = ""
+        label = "HLS kalite"
+        if resolution_match:
+            width, height = map(int, resolution_match.groups())
+            resolution = f"{width}x{height}"
+            label = "4K" if height >= 2160 else f"{height}p"
+        bandwidth = int(bandwidth_match.group(1)) if bandwidth_match else 0
+        variants.append({
+            "name": label,
+            "source": variant_url,
+            "resolution": resolution,
+            "bandwidth": bandwidth,
+        })
+        if len(variants) >= 8:
+            break
+    return variants
+
+
 def probe_live_tv_source(source: str) -> dict[str, Any]:
     """Check a public YouTube/HLS URL without downloading media segments."""
     try:
@@ -167,9 +207,11 @@ def probe_live_tv_source(source: str) -> dict[str, Any]:
         text = body.decode("utf-8", "replace").lstrip("\ufeff \r\n\t")
         if not text.startswith("#EXTM3U"):
             return {"ok": False, "kind": "hls", "message": "The URL responded, but the response is not an HLS #EXTM3U playlist."}
-        resolutions = re.findall(r"RESOLUTION=([0-9]{2,5}x[0-9]{2,5})", text, flags=re.IGNORECASE)
-        if resolutions:
-            message = f"HLS master playlist is reachable with {len(resolutions)} quality variant(s): {', '.join(resolutions[:8])}."
+        variant_sources = _parse_hls_master_variants(text, final_url)
+        resolutions = [variant["resolution"] for variant in variant_sources if variant["resolution"]]
+        if variant_sources:
+            labels = ", ".join(variant["name"] for variant in variant_sources)
+            message = f"HLS ana listesi erişilebilir; {len(variant_sources)} kalite seçeneği bulundu: {labels}. İstersen aşağıdan Nuvio kaynaklarına ekleyebilirsin."
         else:
             message = "Valid HLS media playlist is reachable; media segments were not downloaded."
         return {
@@ -178,6 +220,7 @@ def probe_live_tv_source(source: str) -> dict[str, Any]:
             "final_host": urlparse(final_url).hostname or "",
             "content_type": content_type[:160],
             "variants": resolutions[:8],
+            "variant_sources": variant_sources,
             "message": message,
         }
     except LiveTVConfigError as exc:

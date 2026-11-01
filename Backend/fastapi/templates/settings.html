@@ -306,6 +306,12 @@
             <button id="live_tv_save_btn" type="button" class="add-btn" onclick="saveLiveTvChannels()"><i class="fa-solid fa-floppy-disk"></i> Değişiklikleri kaydet</button>
         </div>
         <p id="live_tv_test_status" class="hint" aria-live="polite" style="margin-top:.65rem"></p>
+        <div id="live_tv_variant_choices" style="display:none;margin-top:.55rem;padding:.7rem;border:1px solid var(--border,rgba(255,255,255,.12));border-radius:10px">
+            <strong>Bulunan kalite seçenekleri</strong>
+            <p class="hint" style="margin:.25rem 0 .5rem">İstediğin kaliteleri seçip yayın kaynaklarına ekle. Ana uyarlanabilir yayın satırı olduğu gibi kalır.</p>
+            <div id="live_tv_variant_list" style="display:grid;gap:.35rem"></div>
+            <button id="live_tv_add_variants_btn" type="button" class="add-btn" style="margin-top:.55rem" onclick="addSelectedLiveTvVariants()">Seçili kaliteleri kaynaklara ekle</button>
+        </div>
         <button id="live_tv_use_thumbnail" type="button" class="add-btn" style="display:none;margin-top:.35rem" onclick="useLiveTvTestThumbnail()">YouTube küçük resmini logo yap</button>
         <h3 style="margin:1.2rem 0 .55rem">Eklediğin kanallar</h3>
         <div id="live_tv_channels_preview" aria-live="polite" style="display:grid;gap:.65rem"></div>
@@ -2024,6 +2030,10 @@ async function testLiveTvSource(button) {
     const source = row?.querySelector('.live-tv-source-url').value.trim() || '';
     const status = document.getElementById('live_tv_test_status');
     const thumbnailButton = document.getElementById('live_tv_use_thumbnail');
+    document.getElementById('live_tv_variant_choices').style.display = 'none';
+    document.getElementById('live_tv_variant_list').replaceChildren();
+    window.liveTvDetectedVariants = [];
+    window.liveTvVariantTestRow = null;
     if (!source) {
         status.textContent = 'Önce bu satıra bir yayın URL’si yaz.';
         return;
@@ -2049,12 +2059,81 @@ async function testLiveTvSource(button) {
             if (data.title) status.textContent += ` YouTube title: ${data.title}.`;
             if (data.thumbnail_url) thumbnailButton.style.display = 'inline-flex';
         }
+        if (data.kind === 'hls' && Array.isArray(data.variant_sources) && data.variant_sources.length) {
+            showLiveTvVariantChoices(data.variant_sources, row);
+        }
     } catch (error) {
         status.textContent = `Kaynak testi başarısız: ${error.message}`;
         status.style.color = 'var(--danger, #ef4444)';
     } finally {
         button.disabled = false;
     }
+}
+
+function showLiveTvVariantChoices(variants, testedRow) {
+    const panel = document.getElementById('live_tv_variant_choices');
+    const list = document.getElementById('live_tv_variant_list');
+    const counts = new Map();
+    variants.forEach(variant => counts.set(variant.name, (counts.get(variant.name) || 0) + 1));
+    window.liveTvDetectedVariants = variants;
+    window.liveTvVariantTestRow = testedRow;
+    list.replaceChildren();
+    variants.forEach((variant, index) => {
+        const label = document.createElement('label');
+        label.style.cssText = 'display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;border-radius:7px;background:rgba(255,255,255,.035);cursor:pointer';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = true;
+        checkbox.dataset.variantIndex = String(index);
+        let title = variant.name || 'HLS kalite';
+        if ((counts.get(title) || 0) > 1 && variant.bandwidth) title += ` · ${(variant.bandwidth / 1000000).toFixed(1)} Mbps`;
+        const text = document.createElement('span');
+        text.textContent = `${title}${variant.resolution ? ` (${variant.resolution})` : ''}`;
+        label.append(checkbox, text);
+        list.appendChild(label);
+    });
+    panel.style.display = 'block';
+}
+
+function addSelectedLiveTvVariants() {
+    const variants = window.liveTvDetectedVariants || [];
+    const selected = [...document.querySelectorAll('#live_tv_variant_list input[type="checkbox"]:checked')]
+        .map(input => variants[Number(input.dataset.variantIndex)])
+        .filter(Boolean);
+    if (!selected.length) {
+        document.getElementById('live_tv_test_status').textContent = 'Önce eklemek istediğin kalite seçeneklerini işaretle.';
+        return;
+    }
+    const container = document.getElementById('live_tv_source_rows');
+    const currentUrls = new Set(collectLiveTvEditorSources().map(source => source.source));
+    let added = 0;
+    let skipped = 0;
+    for (const variant of selected) {
+        if (currentUrls.has(variant.source)) { skipped++; continue; }
+        let row = [...container.querySelectorAll('.live-tv-source-row')]
+            .find(candidate => !candidate.querySelector('.live-tv-source-url').value.trim());
+        if (!row && container.querySelectorAll('.live-tv-source-row').length < 10) {
+            addLiveTvSourceRow();
+            row = container.querySelector('.live-tv-source-row:last-child');
+        }
+        if (!row) break;
+        let label = variant.name || 'HLS kalite';
+        if ((variants.filter(item => item.name === label).length > 1) && variant.bandwidth) {
+            label += ` · ${(variant.bandwidth / 1000000).toFixed(1)} Mbps`;
+        }
+        row.querySelector('.live-tv-source-label').value = label;
+        row.querySelector('.live-tv-source-url').value = variant.source;
+        currentUrls.add(variant.source);
+        added++;
+    }
+    const status = document.getElementById('live_tv_test_status');
+    status.textContent = `${added} kalite kaynağı satırlara eklendi${skipped ? `, ${skipped} yinelenen atlandı` : ''}. Kanalı listeye ekle/güncelle ve sonra değişiklikleri kaydet.`;
+    status.style.color = 'var(--success, #22c55e)';
+    if (added < selected.length - skipped) status.textContent += ' Kaynak sınırına ulaşıldı; kalan kalite seçenekleri eklenemedi.';
+    renderLiveTvSourceRows([...container.querySelectorAll('.live-tv-source-row')].map(row => ({
+        name: row.querySelector('.live-tv-source-label').value,
+        source: row.querySelector('.live-tv-source-url').value,
+    })));
 }
 
 function useLiveTvTestThumbnail() {
