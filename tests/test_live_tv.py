@@ -130,13 +130,13 @@ class LiveTVTests(unittest.TestCase):
             result = probe_live_tv_source(url)
         self.assertTrue(result["ok"])
         self.assertEqual(result["kind"], "hls")
-        self.assertEqual(result["variants"], ["640x360", "1280x720"])
+        self.assertEqual(result["variants"], ["1280x720", "640x360"])
         self.assertEqual(
             [variant["source"] for variant in result["variant_sources"]],
-            ["https://media.example.org/low.m3u8", "https://media.example.org/high.m3u8"],
+            ["https://media.example.org/high.m3u8", "https://media.example.org/low.m3u8"],
         )
-        self.assertEqual([variant["name"] for variant in result["variant_sources"]], ["360p", "720p"])
-        self.assertEqual([variant["bandwidth"] for variant in result["variant_sources"]], [800000, 2500000])
+        self.assertEqual([variant["name"] for variant in result["variant_sources"]], ["720p", "360p"])
+        self.assertEqual([variant["bandwidth"] for variant in result["variant_sources"]], [2500000, 800000])
         self.assertEqual(result["quality_label"], "720p · 360p")
 
         channel = normalize_live_tv_channels([{
@@ -147,10 +147,34 @@ class LiveTVTests(unittest.TestCase):
             ],
         }])[0]
         streams = live_channel_streams(channel)
-        self.assertEqual([stream["name"] for stream in streams], ["360p", "720p"])
+        self.assertEqual([stream["name"] for stream in streams], ["720p", "360p"])
         self.assertEqual([stream["url"] for stream in streams], [
-            "https://media.example.org/low.m3u8",
             "https://media.example.org/high.m3u8",
+            "https://media.example.org/low.m3u8",
+        ])
+
+    def test_existing_quality_sources_are_returned_highest_to_lowest(self):
+        channel = normalize_live_tv_channels([{
+            "name": "TRT1",
+            "sources": [
+                {"name": "720p", "source": "https://media.example.org/720.m3u8"},
+                {"name": "480p", "source": "https://media.example.org/480.m3u8"},
+                {"name": "360p", "source": "https://media.example.org/360.m3u8"},
+                {"name": "1080p", "source": "https://media.example.org/1080.m3u8"},
+                {"name": "1440p", "source": "https://media.example.org/1440.m3u8"},
+            ],
+        }])[0]
+
+        streams = live_channel_streams(channel)
+        self.assertEqual([stream["name"] for stream in streams], [
+            "1440p", "1080p", "720p", "480p", "360p",
+        ])
+        self.assertEqual([stream["url"] for stream in streams], [
+            "https://media.example.org/1440.m3u8",
+            "https://media.example.org/1080.m3u8",
+            "https://media.example.org/720.m3u8",
+            "https://media.example.org/480.m3u8",
+            "https://media.example.org/360.m3u8",
         ])
 
     def test_hls_quality_is_inferred_from_single_quality_url(self):

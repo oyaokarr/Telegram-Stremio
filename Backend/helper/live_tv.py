@@ -19,6 +19,14 @@ _MAX_SOURCES_PER_CHANNEL = 10
 _MAX_PROBE_BYTES = 64 * 1024
 
 
+def _quality_rank(label: str) -> int | None:
+    value = str(label or "").strip().lower()
+    if value == "4k":
+        return 2160
+    match = re.fullmatch(r"([0-9]{3,4})p", value)
+    return int(match.group(1)) if match else None
+
+
 class LiveTVConfigError(ValueError):
     """Raised when an admin-provided live channel entry is invalid."""
 
@@ -162,9 +170,14 @@ def _parse_hls_master_variants(text: str, master_url: str) -> list[dict[str, Any
             "resolution": resolution,
             "bandwidth": bandwidth,
         })
-        if len(variants) >= 8:
-            break
-    return variants
+    variants.sort(
+        key=lambda variant: (
+            _quality_rank(variant["name"]) or 0,
+            int(variant.get("bandwidth") or 0),
+        ),
+        reverse=True,
+    )
+    return variants[:8]
 
 
 def _hls_quality_label(source_url: str, variants: list[dict[str, Any]]) -> str | None:
@@ -181,7 +194,7 @@ def _hls_quality_label(source_url: str, variants: list[dict[str, Any]]) -> str |
     }
     if labels:
         return " · ".join(
-            sorted(labels, key=lambda label: 2160 if label == "4K" else int(label[:-1]), reverse=True)
+            sorted(labels, key=lambda label: _quality_rank(label) or 0, reverse=True)
         )
 
     parsed = urlparse(source_url)
@@ -421,6 +434,9 @@ def live_channel_streams(channel: dict[str, Any]) -> list[dict[str, Any]]:
         }]
 
     multiple = len(raw_sources) > 1
+    source_labels = [str(source.get("name") or "").strip() for source in raw_sources]
+    if multiple and all(_quality_rank(label) is not None for label in source_labels):
+        raw_sources = sorted(raw_sources, key=lambda source: _quality_rank(source.get("name")) or 0, reverse=True)
     streams: list[dict[str, Any]] = []
     for index, source in enumerate(raw_sources, start=1):
         label = str(source.get("name") or "").strip()
