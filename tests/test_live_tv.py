@@ -137,6 +137,15 @@ class LiveTVTests(unittest.TestCase):
         )
         self.assertEqual([variant["name"] for variant in result["variant_sources"]], ["360p", "720p"])
         self.assertEqual([variant["bandwidth"] for variant in result["variant_sources"]], [800000, 2500000])
+        self.assertEqual(result["quality_label"], "720p · 360p")
+
+    def test_hls_quality_is_inferred_from_single_quality_url(self):
+        url = "https://media.example.org/live/master_1440p.m3u8"
+        playlist = b"#EXTM3U\n#EXTINF:6,\nsegment.ts\n"
+        with patch.object(_LIVE_TV, "_fetch_small_public_response", return_value=(200, url, "application/x-mpegURL", playlist)):
+            result = probe_live_tv_source(url)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["quality_label"], "1440p")
 
     def test_hls_variant_resolution_uses_final_redirect_url_and_skips_non_https(self):
         playlist = (

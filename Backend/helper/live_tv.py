@@ -8,7 +8,7 @@ import unicodedata
 from typing import Any
 import urllib.error
 import urllib.request
-from urllib.parse import parse_qs, urlencode, urljoin, urlparse
+from urllib.parse import parse_qs, unquote, urlencode, urljoin, urlparse
 
 
 _YOUTUBE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
@@ -167,6 +167,36 @@ def _parse_hls_master_variants(text: str, master_url: str) -> list[dict[str, Any
     return variants
 
 
+def _hls_quality_label(source_url: str, variants: list[dict[str, Any]]) -> str | None:
+    """Return declared HLS variant qualities, or an explicit quality token in its URL."""
+    labels = {
+        str(variant.get("name") or "").strip()
+        for variant in variants
+        if str(variant.get("name") or "").strip()
+    }
+    labels = {
+        "4K" if label.lower() == "4k" else label.lower()
+        for label in labels
+        if label.lower() == "4k" or re.fullmatch(r"[0-9]{3,4}p", label, re.I)
+    }
+    if labels:
+        return " · ".join(
+            sorted(labels, key=lambda label: 2160 if label == "4K" else int(label[:-1]), reverse=True)
+        )
+
+    parsed = urlparse(source_url)
+    url_text = f"{unquote(parsed.path)} {unquote(parsed.query)}"
+    match = re.search(
+        r"(?<![a-z0-9])(?:4k|2160p|1440p|1080p|720p|576p|540p|480p|360p|240p)(?![a-z0-9])",
+        url_text,
+        re.I,
+    )
+    if not match:
+        return None
+    label = match.group(0)
+    return "4K" if label.lower() == "4k" else label.lower()
+
+
 def probe_live_tv_source(source: str) -> dict[str, Any]:
     """Check a public YouTube/HLS URL without downloading media segments."""
     try:
@@ -221,6 +251,7 @@ def probe_live_tv_source(source: str) -> dict[str, Any]:
             "content_type": content_type[:160],
             "variants": resolutions[:8],
             "variant_sources": variant_sources,
+            "quality_label": _hls_quality_label(final_url, variant_sources),
             "message": message,
         }
     except LiveTVConfigError as exc:

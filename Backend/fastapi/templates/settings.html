@@ -292,20 +292,20 @@
             <div>
                 <span class="s-label">Yayın kaynakları</span>
                 <div style="display:grid;gap:.55rem">
-                    <div style="display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:.45rem;align-items:center">
-                        <label class="hint" for="live_tv_editor_source_1">Kaynak 1</label>
+                    <div style="display:grid;grid-template-columns:104px minmax(0,1fr) auto;gap:.45rem;align-items:center">
+                        <label class="hint" for="live_tv_editor_source_1" style="display:flex;flex-direction:column;gap:.12rem;line-height:1.2">Kaynak 1<span id="live_tv_source_quality_1" aria-live="polite" title="" style="display:none;color:var(--success,#22c55e);font-size:.64rem;font-weight:700;white-space:normal;overflow-wrap:anywhere"></span></label>
                         <input id="live_tv_editor_source_1" class="s-input" type="url" placeholder="HLS .m3u8 veya YouTube bağlantısı" autocomplete="url" spellcheck="false" oninput="invalidateLiveTvSourceTest(1)">
                         <button id="live_tv_source_test_btn_1" type="button" class="add-btn" onclick="testLiveTvSourceSlot(1)">Test et</button>
                         <span id="live_tv_source_status_1" class="hint" aria-live="polite" style="grid-column:2/4;min-height:1em"></span>
                     </div>
-                    <div style="display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:.45rem;align-items:center">
-                        <label class="hint" for="live_tv_editor_source_2">Kaynak 2</label>
+                    <div style="display:grid;grid-template-columns:104px minmax(0,1fr) auto;gap:.45rem;align-items:center">
+                        <label class="hint" for="live_tv_editor_source_2" style="display:flex;flex-direction:column;gap:.12rem;line-height:1.2">Kaynak 2<span id="live_tv_source_quality_2" aria-live="polite" title="" style="display:none;color:var(--success,#22c55e);font-size:.64rem;font-weight:700;white-space:normal;overflow-wrap:anywhere"></span></label>
                         <input id="live_tv_editor_source_2" class="s-input" type="url" placeholder="İsteğe bağlı ikinci bağlantı" autocomplete="url" spellcheck="false" oninput="invalidateLiveTvSourceTest(2)">
                         <button id="live_tv_source_test_btn_2" type="button" class="add-btn" onclick="testLiveTvSourceSlot(2)">Test et</button>
                         <span id="live_tv_source_status_2" class="hint" aria-live="polite" style="grid-column:2/4;min-height:1em"></span>
                     </div>
-                    <div style="display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:.45rem;align-items:center">
-                        <label class="hint" for="live_tv_editor_source_3">Kaynak 3</label>
+                    <div style="display:grid;grid-template-columns:104px minmax(0,1fr) auto;gap:.45rem;align-items:center">
+                        <label class="hint" for="live_tv_editor_source_3" style="display:flex;flex-direction:column;gap:.12rem;line-height:1.2">Kaynak 3<span id="live_tv_source_quality_3" aria-live="polite" title="" style="display:none;color:var(--success,#22c55e);font-size:.64rem;font-weight:700;white-space:normal;overflow-wrap:anywhere"></span></label>
                         <input id="live_tv_editor_source_3" class="s-input" type="url" placeholder="İsteğe bağlı üçüncü bağlantı" autocomplete="url" spellcheck="false" oninput="invalidateLiveTvSourceTest(3)">
                         <button id="live_tv_source_test_btn_3" type="button" class="add-btn" onclick="testLiveTvSourceSlot(3)">Test et</button>
                         <span id="live_tv_source_status_3" class="hint" aria-live="polite" style="grid-column:2/4;min-height:1em"></span>
@@ -1793,9 +1793,18 @@ function setLiveTvSourceStatus(index, message, state = null) {
     status.style.color = state === true ? 'var(--success, #22c55e)' : state === false ? 'var(--danger, #ef4444)' : 'var(--text-sec)';
 }
 
+function setLiveTvSourceQuality(index, label = '', title = '') {
+    const quality = document.getElementById(`live_tv_source_quality_${index}`);
+    if (!quality) return;
+    quality.textContent = label ? `— ${label}` : '';
+    quality.title = title;
+    quality.style.display = label ? 'block' : 'none';
+}
+
 function invalidateLiveTvSourceTest(index) {
     window.liveTvSourceChecks = window.liveTvSourceChecks || {};
     delete window.liveTvSourceChecks[index];
+    setLiveTvSourceQuality(index, '');
     setLiveTvSourceStatus(index, 'Bağlantı değişti; yeniden test et.');
 }
 
@@ -1806,6 +1815,7 @@ function fillLiveTvSourceSlots(sources = []) {
         const source = sources[index - 1];
         const url = source?.source || source?.url || '';
         document.getElementById(`live_tv_editor_source_${index}`).value = url;
+        setLiveTvSourceQuality(index, '');
         if (url) {
             window.liveTvSourceChecks[index] = {url, ok: true, existing: true};
             setLiveTvSourceStatus(index, 'Kayıtlı kaynak; istersen yeniden test et.');
@@ -1830,6 +1840,7 @@ async function testLiveTvSourceSlot(index) {
     const originalLabel = button.innerHTML;
     button.disabled = true;
     button.textContent = 'Test…';
+    setLiveTvSourceQuality(index, '');
     setLiveTvSourceStatus(index, 'Bağlantı kontrol ediliyor…');
     try {
         const response = await fetch('/api/admin/live-tv/test-source', {
@@ -1842,7 +1853,24 @@ async function testLiveTvSourceSlot(index) {
 
         window.liveTvSourceChecks = window.liveTvSourceChecks || {};
         window.liveTvSourceChecks[index] = {url, ok: true};
-        setLiveTvSourceStatus(index, result.kind === 'youtube' ? 'YouTube bağlantısı tanındı.' : 'HLS bağlantısı erişilebilir.', true);
+        if (result.kind === 'youtube') {
+            setLiveTvSourceQuality(index, 'Kalite oynatıcıya bağlı', 'YouTube çözünürlüğünü cihaz, ağ ve oynatıcı belirler.');
+            setLiveTvSourceStatus(index, 'YouTube bağlantısı tanındı; kalite oynatıcıya bağlı.', true);
+        } else if (result.quality_label) {
+            const hasDeclaredVariants = Array.isArray(result.variant_sources)
+                && result.variant_sources.some(variant => /^(?:4k|[0-9]{3,4}p)$/i.test(String(variant.name || '')));
+            setLiveTvSourceQuality(
+                index,
+                result.quality_label,
+                hasDeclaredVariants
+                    ? 'HLS ana listesinde ilan edilen kalite seçenekleri; Nuvio/oynatıcı uygun olanı seçer.'
+                    : 'Kalite etiketi bağlantı adresinden algılandı; yayıncı bunu playlist içinde ayrıca doğrulamamış olabilir.',
+            );
+            setLiveTvSourceStatus(index, `HLS bağlantısı erişilebilir; kalite: ${result.quality_label}.`, true);
+        } else {
+            setLiveTvSourceQuality(index, 'Kalite bilgisi yok', 'Playlist ve bağlantı adresi çözünürlük belirtmiyor; kaliteyi güvenilir biçimde saptamak mümkün olmadı.');
+            setLiveTvSourceStatus(index, 'HLS bağlantısı erişilebilir; playlist kalite bilgisi vermiyor.', true);
+        }
 
         const logoInput = document.getElementById('live_tv_editor_logo');
         if (!logoInput.value.trim() && result.kind === 'youtube') {
@@ -1862,6 +1890,7 @@ async function testLiveTvSourceSlot(index) {
     } catch (error) {
         window.liveTvSourceChecks = window.liveTvSourceChecks || {};
         window.liveTvSourceChecks[index] = {url, ok: false};
+        setLiveTvSourceQuality(index, '');
         setLiveTvSourceStatus(index, `Test başarısız: ${error.message}`, false);
         return false;
     } finally {
