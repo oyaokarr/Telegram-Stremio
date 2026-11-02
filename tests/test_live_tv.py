@@ -139,6 +139,20 @@ class LiveTVTests(unittest.TestCase):
         self.assertEqual([variant["bandwidth"] for variant in result["variant_sources"]], [800000, 2500000])
         self.assertEqual(result["quality_label"], "720p · 360p")
 
+        channel = normalize_live_tv_channels([{
+            "name": "News",
+            "sources": [
+                {"name": variant["name"], "source": variant["source"]}
+                for variant in result["variant_sources"]
+            ],
+        }])[0]
+        streams = live_channel_streams(channel)
+        self.assertEqual([stream["name"] for stream in streams], ["360p", "720p"])
+        self.assertEqual([stream["url"] for stream in streams], [
+            "https://media.example.org/low.m3u8",
+            "https://media.example.org/high.m3u8",
+        ])
+
     def test_hls_quality_is_inferred_from_single_quality_url(self):
         url = "https://media.example.org/live/master_1440p.m3u8"
         playlist = b"#EXTM3U\n#EXTINF:6,\nsegment.ts\n"

@@ -272,7 +272,7 @@
     <!-- ── Live TV ─────────────────────────────────────────────────────── -->
     <div class="settings-card">
         <h2><i class="fa-solid fa-tv"></i> Canlı TV Kanalları</h2>
-        <p class="hint" style="margin:.3rem 0 1rem">Bir kanal için en fazla 3 yayın bağlantısı ekleyebilirsin. Her bağlantıyı yanındaki Test düğmesiyle ayrı ayrı dene; kaynak sırası Kaynak 1, 2, 3 olarak korunur.</p>
+        <p class="hint" style="margin:.3rem 0 1rem">Bir kanal için en fazla 3 yayın bağlantısı ekleyebilirsin. HLS ana bağlantısını Test et; bulunan çözünürlükler kaydedince Nuvio’da ayrı ayrı seçilebilir. Diğer bağlantılar Kaynak 1, 2, 3 sırasıyla gösterilir.</p>
         <div style="display:grid;gap:.8rem;max-width:760px">
             <div>
                 <label class="s-label" for="live_tv_editor_name">Kanal adı</label>
@@ -286,7 +286,7 @@
                     <input id="live_tv_logo_file" type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden onchange="uploadLiveTvLogo(this)">
                     <span class="hint">PNG, JPG, GIF veya WebP · en fazla 4 MB</span>
                 </div>
-                <span class="hint" style="display:block;margin-top:.35rem">YouTube bağlantısında küçük kapak otomatik alınır. HLS (.m3u8) bağlantıları kapak görseli taşımaz; onlar için galeriden logo seçebilirsin.</span>
+                <span class="hint" style="display:block;margin-top:.35rem">YouTube bağlantısında küçük kapak otomatik alınır. HLS (.m3u8) bağlantıları kapak görseli taşımaz; onlar için galeriden logo seçebilirsin. HLS ana listesinde bulunan her kalite Nuvio’da ayrı bir yayın seçeneği olarak kaydedilir.</span>
                 <div id="live_tv_logo_preview" style="display:none;align-items:center;gap:.6rem;margin-top:.55rem"><img id="live_tv_logo_preview_img" alt="Logo önizlemesi" style="width:42px;height:42px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,.08);padding:3px"><span class="hint">Seçilen logo</span></div>
             </div>
             <div>
@@ -1765,7 +1765,7 @@ function renderLiveTvPreview(channels) {
         sources.forEach((source, index) => {
             const chip = document.createElement('span');
             chip.style.cssText = 'font-size:.74rem;padding:.2rem .5rem;border-radius:999px;background:rgba(255,255,255,.08)';
-            chip.textContent = `Kaynak ${index + 1}`;
+            chip.textContent = source.name || `Kaynak ${index + 1}`;
             qualities.appendChild(chip);
         });
         body.appendChild(qualities);
@@ -1852,21 +1852,35 @@ async function testLiveTvSourceSlot(index) {
         if (!response.ok || !result.ok) throw new Error(result.detail || result.message || `HTTP ${response.status}`);
 
         window.liveTvSourceChecks = window.liveTvSourceChecks || {};
-        window.liveTvSourceChecks[index] = {url, ok: true};
+        const selectableVariants = result.kind === 'hls' && Array.isArray(result.variant_sources)
+            ? result.variant_sources.filter(variant =>
+                variant?.source && /^(?:4k|[0-9]{3,4}p)$/i.test(String(variant.name || '').trim()))
+            : [];
+        window.liveTvSourceChecks[index] = {
+            url,
+            ok: true,
+            variant_sources: selectableVariants,
+            quality_label: result.quality_label || '',
+        };
         if (result.kind === 'youtube') {
             setLiveTvSourceQuality(index, 'Kalite oynatıcıya bağlı', 'YouTube çözünürlüğünü cihaz, ağ ve oynatıcı belirler.');
             setLiveTvSourceStatus(index, 'YouTube bağlantısı tanındı; kalite oynatıcıya bağlı.', true);
         } else if (result.quality_label) {
-            const hasDeclaredVariants = Array.isArray(result.variant_sources)
-                && result.variant_sources.some(variant => /^(?:4k|[0-9]{3,4}p)$/i.test(String(variant.name || '')));
+            const hasDeclaredVariants = selectableVariants.length > 0;
             setLiveTvSourceQuality(
                 index,
                 result.quality_label,
                 hasDeclaredVariants
-                    ? 'HLS ana listesinde ilan edilen kalite seçenekleri; Nuvio/oynatıcı uygun olanı seçer.'
+                    ? 'Testte bulunan her kalite kaydedince Nuvio’da ayrı bir yayın seçeneği olacak.'
                     : 'Kalite etiketi bağlantı adresinden algılandı; yayıncı bunu playlist içinde ayrıca doğrulamamış olabilir.',
             );
-            setLiveTvSourceStatus(index, `HLS bağlantısı erişilebilir; kalite: ${result.quality_label}.`, true);
+            setLiveTvSourceStatus(
+                index,
+                hasDeclaredVariants
+                    ? `HLS erişilebilir; ${selectableVariants.length} kalite bulundu. Kaydedince Nuvio’da ayrı seçenekler çıkacak.`
+                    : `HLS bağlantısı erişilebilir; kalite: ${result.quality_label}.`,
+                true,
+            );
         } else {
             setLiveTvSourceQuality(index, 'Kalite bilgisi yok', 'Playlist ve bağlantı adresi çözünürlük belirtmiyor; kaliteyi güvenilir biçimde saptamak mümkün olmadı.');
             setLiveTvSourceStatus(index, 'HLS bağlantısı erişilebilir; playlist kalite bilgisi vermiyor.', true);
@@ -2036,11 +2050,34 @@ async function submitLiveTvChannel() {
         const oldSources = Array.isArray(oldChannel?.sources)
             ? oldChannel.sources
             : (oldChannel?.source ? [{source: oldChannel.source, name: oldChannel.source_name || ''}] : []);
-        const sources = sourceEntries.map(item => ({name: `Kaynak ${item.index}`, source: item.url}));
+        const sources = [];
+        for (const item of sourceEntries) {
+            const check = window.liveTvSourceChecks?.[item.index];
+            const variants = check?.url === item.url && Array.isArray(check.variant_sources)
+                ? check.variant_sources
+                : [];
+            if (variants.length) {
+                variants.forEach(variant => sources.push({name: variant.name, source: variant.source}));
+                continue;
+            }
+            const priorSource = oldSources.find(source => (source.source || source.url) === item.url);
+            const detectedLabel = check?.url === item.url && /^(?:4k|[0-9]{3,4}p)$/i.test(check.quality_label)
+                ? check.quality_label
+                : '';
+            sources.push({
+                name: priorSource?.name || detectedLabel || `Kaynak ${item.index}`,
+                source: item.url,
+            });
+        }
         const overflowSources = oldSources.slice(3).filter(item => item.source || item.url);
-        let nextSourceNumber = Math.max(3, ...sourceEntries.map(item => item.index)) + 1;
+        let nextSourceNumber = Math.max(sources.length, 3) + 1;
         for (const source of overflowSources) {
-            sources.push({name: `Kaynak ${nextSourceNumber++}`, source: source.source || source.url});
+            const sourceUrl = source.source || source.url;
+            if (sources.some(existing => existing.source === sourceUrl)) continue;
+            sources.push({name: source.name || `Kaynak ${nextSourceNumber++}`, source: sourceUrl});
+        }
+        if (sources.length > 10) {
+            throw new Error(`Bu kanal için ${sources.length} yayın seçeneği oluştu. Sunucu en fazla 10 kaynağı kabul ediyor; kaynak sayısını azalt.`);
         }
         const channel = {
             name,
