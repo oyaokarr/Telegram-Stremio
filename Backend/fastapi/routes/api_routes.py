@@ -3,6 +3,7 @@ import asyncio
 import json
 import os
 import random
+import re
 import secrets
 import shutil
 from datetime import datetime
@@ -63,6 +64,7 @@ from Backend.helper.session_auth import (
     submit_password,
 )
 from Backend.helper.settings_manager import SettingsManager
+from Backend.helper.database import convert_objectid_to_str
 from Backend.helper.live_tv import LiveTVConfigError, normalize_live_tv_channels, probe_live_tv_source
 from Backend.helper.split_files import strip_part_suffix
 from Backend.helper.subtitles import (
@@ -178,6 +180,49 @@ async def list_media_api(
             resp = await db.sort_tv_shows([], page, page_size, extra_filter=extra_filter)
         _resolve_covers(resp.get(key))
         return resp
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+async def library_inventory_api(
+    media_type: str = Query("tv", regex="^(movie|tv)$"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(24, ge=1, le=100),
+    search: str = Query("", max_length=100),
+):
+    """Read-only, full-document listing used by the library overview dashboard."""
+    try:
+        filter_dict = {}
+        search_terms = [re.escape(term) for term in (search or "").split() if term]
+        if search_terms:
+            pattern = ".*".join(search_terms)
+            regex_query = {"$regex": pattern, "$options": "i"}
+            fields = ["title", "title_english", "original_title"]
+            if media_type == "tv":
+                fields.extend(["seasons.episodes.title", "seasons.episodes.telegram.name"])
+            else:
+                fields.append("telegram.name")
+            filter_dict = {"$or": [{field: regex_query} for field in fields]}
+
+        collection_name = "movie" if media_type == "movie" else "tv"
+        items, databases_checked, total_count = await db._paginate_collection(
+            collection_name,
+            db._get_sort_dict([]),
+            page,
+            page_size,
+            filter_dict=filter_dict,
+        )
+        items = [convert_objectid_to_str(item) for item in items]
+        _resolve_covers(items)
+        total_pages = (total_count + page_size - 1) // page_size
+        key = "movies" if media_type == "movie" else "tv_shows"
+        return {
+            key: items,
+            "total_count": total_count,
+            "total_pages": total_pages,
+            "current_page": page,
+            "databases_checked": databases_checked,
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -2339,7 +2384,7 @@ LOG_FILE = "log.txt"
 #----- Aggregate content + system metrics across all storage DBs (was /stats)
 async def get_db_stats_api() -> dict:
     try:
-        total_movies = total_tv = total_episodes = total_streams = total_db_size = 0
+        total_movies = total_tv = total_seasons = total_episodes = total_streams = total_db_size = 0
 
         for i in range(1, db.current_db_index + 1):
             storage = db.dbs.get(f"storage_{i}")
@@ -2352,8 +2397,10 @@ async def get_db_stats_api() -> dict:
 
             total_tv += await storage["tv"].count_documents({})
             async for show in storage["tv"].find({}, {"seasons": 1}):
-                for season in show.get("seasons", []):
-                    for episode in season.get("episodes", []):
+                seasons = show.get("seasons") or []
+                total_seasons += len(seasons)
+                for season in seasons:
+                    for episode in (season.get("episodes") or []):
                         total_episodes += 1
                         total_streams += len(episode.get("telegram", []))
 
@@ -2368,6 +2415,7 @@ async def get_db_stats_api() -> dict:
                 "version": __version__,
                 "movies": total_movies,
                 "tv_shows": total_tv,
+                "seasons": total_seasons,
                 "episodes": total_episodes,
                 "streams": total_streams,
                 "uptime": get_readable_time(int(time() - StartTime)),

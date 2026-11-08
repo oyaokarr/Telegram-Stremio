@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}Kütüphane Kontrol Paneli - Telegram Stremio{% endblock %}
+
+{% block content %}
+<style>
+  .lib-card { background: color-mix(in srgb, var(--card) 90%, var(--bg)); border: 1px solid color-mix(in srgb, var(--border) 90%, transparent); }
+  .lib-muted { color: var(--text-sec); }
+  .lib-stat { min-width: 0; position: relative; overflow: hidden; }
+  .lib-stat::after { content: ""; position: absolute; width: 8rem; height: 8rem; top: -3rem; right: -2rem; border-radius: 999px; background: color-mix(in srgb, var(--primary) 12%, transparent); filter: blur(18px); pointer-events: none; }
+  .lib-table { width: 100%; border-collapse: collapse; }
+  .lib-table th { text-align: left; font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-sec); padding: .9rem 1rem; border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent); }
+  .lib-table td { padding: .85rem 1rem; border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent); vertical-align: top; }
+  .lib-table tr:last-child td { border-bottom: 0; }
+  .lib-tag { display: inline-flex; gap: .3rem; align-items: center; padding: .2rem .55rem; border: 1px solid color-mix(in srgb, var(--border) 80%, transparent); background: color-mix(in srgb, var(--bg) 70%, transparent); border-radius: 999px; font-size: .72rem; white-space: nowrap; }
+  .lib-poster { width: 3.2rem; height: 4.6rem; flex: 0 0 auto; object-fit: cover; border-radius: .7rem; background: color-mix(in srgb, var(--bg) 75%, transparent); border: 1px solid color-mix(in srgb, var(--border) 65%, transparent); }
+  .lib-season summary { cursor: pointer; list-style: none; }
+  .lib-season summary::-webkit-details-marker { display: none; }
+  .lib-episode { border-top: 1px solid color-mix(in srgb, var(--border) 50%, transparent); }
+  .lib-tab[aria-pressed="true"] { background: var(--primary); color: #fff; border-color: var(--primary); }
+  @media (max-width: 640px) { .lib-table th, .lib-table td { padding: .65rem .5rem; } }
+</style>
+
+<div class="w-full max-w-7xl mx-auto py-5 sm:py-8">
+  <section class="lib-card rounded-3xl p-5 sm:p-7 mb-5 sm:mb-7">
+    <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+      <div>
+        <div class="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-extrabold bg-primary/10 text-primary border border-primary/20 mb-3">
+          <i class="fa-solid fa-database"></i> TÜM KÜTÜPHANE TEK EKRANDA
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-text">Kütüphane Kontrol Paneli</h1>
+        <p class="lib-muted mt-2 text-sm sm:text-base">Dizileri, sezon ve bölüm sayılarını; filmlerin kayıtlı bilgilerini ve kaynaklarını inceleyin.</p>
+      </div>
+      <button type="button" onclick="refreshLibrary()" class="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-primary text-white font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition">
+        <i id="refresh-icon" class="fa-solid fa-arrows-rotate"></i><span>Yenile</span>
+      </button>
+    </div>
+  </section>
+
+  <section class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 mb-5 sm:mb-7" aria-label="Kütüphane toplamları">
+    <div class="lib-card lib-stat rounded-2xl p-4 sm:p-5"><p class="lib-muted text-xs font-bold uppercase tracking-wider">Film</p><p id="stat-movies" class="text-2xl sm:text-3xl font-black mt-2">—</p><p class="lib-muted text-xs mt-1">kayıtlı film</p></div>
+    <div class="lib-card lib-stat rounded-2xl p-4 sm:p-5"><p class="lib-muted text-xs font-bold uppercase tracking-wider">Dizi</p><p id="stat-shows" class="text-2xl sm:text-3xl font-black mt-2">—</p><p class="lib-muted text-xs mt-1">kayıtlı dizi</p></div>
+    <div class="lib-card lib-stat rounded-2xl p-4 sm:p-5"><p class="lib-muted text-xs font-bold uppercase tracking-wider">Sezon</p><p id="stat-seasons" class="text-2xl sm:text-3xl font-black mt-2">—</p><p class="lib-muted text-xs mt-1">dizilerde toplam</p></div>
+    <div class="lib-card lib-stat rounded-2xl p-4 sm:p-5"><p class="lib-muted text-xs font-bold uppercase tracking-wider">Bölüm</p><p id="stat-episodes" class="text-2xl sm:text-3xl font-black mt-2">—</p><p class="lib-muted text-xs mt-1">dizilerde toplam</p></div>
+    <div class="lib-card lib-stat rounded-2xl p-4 sm:p-5 col-span-2 sm:col-span-1"><p class="lib-muted text-xs font-bold uppercase tracking-wider">Medya kaynağı</p><p id="stat-streams" class="text-2xl sm:text-3xl font-black mt-2">—</p><p class="lib-muted text-xs mt-1">kayıtlı yayın/dosya</p></div>
+  </section>
+
+  <section class="lib-card rounded-3xl p-4 sm:p-5 mb-5 sm:mb-7">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+      <div><h2 class="font-extrabold text-lg">Depolama dağılımı</h2><p class="lib-muted text-xs mt-1">İçeriklerin kayıtlı olduğu depolama veritabanları</p></div>
+      <span id="node-total" class="lib-tag"><i class="fa-solid fa-server"></i> — depo</span>
+    </div>
+    <div id="database-breakdown" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3"><div class="lib-muted text-sm">Yükleniyor…</div></div>
+    <p id="overview-error" class="hidden text-sm text-red-400 mt-3"></p>
+  </section>
+
+  <section class="lib-card rounded-3xl overflow-hidden">
+    <div class="p-4 sm:p-6 border-b border-hairline">
+      <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        <div>
+          <h2 class="font-extrabold text-xl">İçerik envanteri</h2>
+          <p id="results-label" class="lib-muted text-sm mt-1">Kayıtlar yükleniyor…</p>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
+          <div class="flex gap-2" role="tablist" aria-label="Medya türü">
+            <button id="tab-tv" type="button" class="lib-tab inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-hairline font-bold transition" aria-pressed="true" onclick="selectType('tv')"><i class="fa-solid fa-tv"></i> Diziler</button>
+            <button id="tab-movie" type="button" class="lib-tab inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-hairline font-bold transition" aria-pressed="false" onclick="selectType('movie')"><i class="fa-solid fa-film"></i> Filmler</button>
+          </div>
+          <div class="flex gap-2">
+            <input id="library-search" type="search" maxlength="100" placeholder="Başlıkta ara…" class="min-w-0 flex-1 sm:w-56 px-4 py-2.5 rounded-xl bg-background text-text border border-hairline focus:outline-none focus:ring-2 focus:ring-primary/50">
+            <button type="button" onclick="searchLibrary()" class="px-4 py-2.5 rounded-xl bg-primary text-white font-bold" aria-label="Ara"><i class="fa-solid fa-magnifying-glass"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="inventory-loading" class="hidden p-10 text-center lib-muted"><i class="fa-solid fa-spinner fa-spin mr-2"></i> İçerikler yükleniyor…</div>
+    <div id="inventory-error" class="hidden m-4 sm:m-6 p-4 rounded-2xl border border-red-500/30 bg-red-500/10 text-red-300"></div>
+    <div id="inventory-list" class="divide-y divide-hairline"></div>
+    <div id="inventory-empty" class="hidden p-10 text-center"><i class="fa-solid fa-box-open text-3xl text-primary"></i><p class="font-bold mt-3">Bu aramada içerik bulunamadı.</p><p class="lib-muted text-sm mt-1">Arama kelimesini değiştirebilir veya aramayı temizleyebilirsiniz.</p></div>
+
+    <div class="p-4 sm:p-5 border-t border-hairline flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <span id="pagination-info" class="lib-muted text-sm"></span>
+      <div class="flex gap-2 justify-end">
+        <button id="prev-page" type="button" onclick="changePage(-1)" class="px-4 py-2 rounded-xl border border-hairline font-bold disabled:opacity-40" disabled><i class="fa-solid fa-chevron-left mr-1"></i> Önceki</button>
+        <button id="next-page" type="button" onclick="changePage(1)" class="px-4 py-2 rounded-xl border border-hairline font-bold disabled:opacity-40" disabled>Sonraki <i class="fa-solid fa-chevron-right ml-1"></i></button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  const pageSize = 24;
+  let libraryType = 'tv';
+  let libraryPage = 1;
+  let librarySearch = '';
+  let libraryTotalPages = 1;
+  let searchTimer = null;
+
+  function esc(value) {
+    return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+  }
+  function fmt(value) { return Number(value || 0).toLocaleString('tr-TR'); }
+  function showValue(value) { return value === 0 ? '0' : (value || '—'); }
+  function yearLabel(item) {
+    const start = item.release_year || '';
+    const end = item.release_year_end || '';
+    if (start && end && String(start) !== String(end)) return `${esc(start)}–${esc(end)}`;
+    return esc(start || 'Yıl bilgisi yok');
+  }
+  function editUrl(item, type) {
+    const p = new URLSearchParams({ tmdb_id: String(item.tmdb_id ?? 0), db_index: String(item.db_index ?? 1), media_type: type });
+    return `/media/edit?${p.toString()}`;
+  }
+  function mediaQualities(item) {
+    const entries = [];
+    if (libraryType === 'movie') (item.telegram || []).forEach(q => entries.push(q));
+    else (item.seasons || []).forEach(s => (s.episodes || []).forEach(e => (e.telegram || []).forEach(q => entries.push(q))));
+    const labels = [...new Set(entries.map(q => q.quality || 'Kalite belirtilmemiş'))];
+    return { entries, labels };
+  }
+  function sourceMarkup(qualities) {
+    if (!qualities.length) return '<span class="lib-muted text-sm">Dosya/kaynak bilgisi bulunmuyor.</span>';
+    return `<div class="flex flex-wrap gap-2">${qualities.map(q => `<span class="lib-tag" title="${esc(q.name || '')}"><i class="fa-solid fa-play text-primary"></i> ${esc(q.quality || 'Kaynak')} · ${esc(q.name || 'Ad yok')} · ${esc(q.size || 'Boyut yok')}</span>`).join('')}</div>`;
+  }
+  function posterMarkup(item) {
+    const poster = item.poster || item.backdrop;
+    if (!poster) return '<div class="lib-poster flex items-center justify-center text-primary"><i class="fa-solid fa-film"></i></div>';
+    return `<img class="lib-poster" src="${esc(poster)}" alt="${esc(item.title || 'Afiş')}" loading="lazy" onerror="this.style.display='none'">`;
+  }
+  function commonMeta(item) {
+    const genres = (item.genres || []).slice(0, 5).map(g => `<span class="lib-tag">${esc(g)}</span>`).join('');
+    const cast = (item.cast || []).slice(0, 12).map(n => esc(n)).join(', ');
+    const providers = (item.watch_providers || []).map(n => `<span class="lib-tag">${esc(n)}</span>`).join('');
+    const countries = [...new Set([...(item.origin_country || []), ...(item.production_countries || [])])].map(n => esc(n)).join(', ');
+    return `
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <div><p class="lib-muted text-xs font-bold uppercase mb-1">Özet</p><p class="text-sm leading-relaxed">${esc(item.description || 'Açıklama kayıtlı değil.')}</p></div>
+        <div class="space-y-3">
+          <div><p class="lib-muted text-xs font-bold uppercase mb-1">Türler</p><div class="flex flex-wrap gap-1.5">${genres || '<span class="lib-muted text-sm">—</span>'}</div></div>
+          <div><p class="lib-muted text-xs font-bold uppercase mb-1">Oyuncular</p><p class="text-sm">${cast || '—'}</p></div>
+          <div class="grid grid-cols-2 gap-2 text-sm"><div><span class="lib-muted">TMDB:</span> ${esc(item.tmdb_id ?? '—')}</div><div><span class="lib-muted">IMDb:</span> ${esc(item.imdb_id || '—')}</div><div><span class="lib-muted">Dil:</span> ${esc(item.original_language || '—')}</div><div><span class="lib-muted">Ülke:</span> ${countries || '—'}</div><div><span class="lib-muted">Süre:</span> ${esc(item.runtime || '—')}</div><div><span class="lib-muted">Görünürlük:</span> ${esc(item.visibility || 'Genel')}</div><div><span class="lib-muted">Katalog:</span> ${esc(item.auto_catalog?.name || item.auto_catalog?.catalog || '—')}</div><div><span class="lib-muted">Depo:</span> ${esc(item.db_index ?? '—')}</div><div class="col-span-2"><span class="lib-muted">Son güncelleme:</span> ${esc(item.updated_on || '—')}</div></div>
+          <div><p class="lib-muted text-xs font-bold uppercase mb-1">İzleme sağlayıcıları</p><div class="flex flex-wrap gap-1.5">${providers || '<span class="lib-muted text-sm">—</span>'}</div></div>
+          <div><p class="lib-muted text-xs font-bold uppercase mb-1">Etiketler</p><p class="text-sm">${(item.auto_tags || []).map(esc).join(', ') || '—'}</p></div>
+        </div>
+      </div>`;
+  }
+  function tvSeasonsMarkup(item) {
+    const seasons = (item.seasons || []).slice().sort((a, b) => Number(a.season_number || 0) - Number(b.season_number || 0));
+    if (!seasons.length) return '<p class="lib-muted text-sm mt-3">Bu dizide henüz sezon/bölüm kaydı bulunmuyor.</p>';
+    return `<div class="mt-5"><h4 class="font-extrabold mb-2">Sezon ve bölüm dökümü</h4><div class="space-y-2">${seasons.map(season => {
+      const eps = (season.episodes || []).slice().sort((a, b) => Number(a.episode_number || 0) - Number(b.episode_number || 0));
+      return `<details class="lib-season rounded-xl border border-hairline overflow-hidden"><summary class="px-4 py-3 flex items-center justify-between gap-3"><span class="font-bold">${Number(season.season_number) === 0 ? 'Özel bölümler' : `${esc(season.season_number)}. sezon`}</span><span class="lib-tag">${fmt(eps.length)} bölüm <i class="fa-solid fa-chevron-down"></i></span></summary><div class="px-3 sm:px-4 pb-2">${eps.length ? eps.map(ep => {
+        const q = ep.telegram || [];
+        const qLabels = [...new Set(q.map(x => x.quality || 'Kaynak'))].map(esc).join(', ') || 'Kaynak eklenmemiş';
+        const episodeCode = `S${String(season.season_number ?? 0).padStart(2, '0')}E${String(ep.episode_number ?? 0).padStart(2, '0')}`;
+        return `<div class="lib-episode py-3"><div class="min-w-0"><p class="font-semibold text-sm"><span class="text-primary font-black mr-2">${episodeCode}</span>${esc(ep.title || 'Başlıksız bölüm')}</p><p class="lib-muted text-xs mt-1">${esc(ep.released || 'Yayın tarihi yok')}${ep.absolute_episode != null ? ` · Mutlak bölüm ${esc(ep.absolute_episode)}` : ''} · ${q.length} kaynak · ${qLabels}</p>${ep.overview ? `<p class="text-xs mt-2">${esc(ep.overview)}</p>` : ''}${q.length ? `<div class="mt-2">${sourceMarkup(q)}</div>` : ''}</div></div>`;
+      }).join('') : '<p class="lib-muted text-sm py-3">Bu sezonda bölüm kaydı yok.</p>'}</div></details>`;
+    }).join('')}</div></div>`;
+  }
+  function renderTv(item) {
+    const seasons = item.seasons || [];
+    const episodeCount = seasons.reduce((sum, s) => sum + (s.episodes || []).length, 0);
+    const quality = mediaQualities(item);
+    const title = item.title || item.title_english || item.original_title || 'Başlıksız dizi';
+    const titleAlt = [item.title_english, item.original_title].filter(Boolean).filter(v => v !== title).slice(0, 2).join(' · ');
+    return `<article class="p-4 sm:p-5 hover:bg-surface/30 transition">
+      <div class="flex flex-col sm:flex-row gap-4">
+        <div class="flex gap-3 min-w-0 flex-1">${posterMarkup(item)}<div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-center gap-2"><h3 class="font-extrabold text-lg leading-tight">${esc(title)}</h3>${item.is_anime ? '<span class="lib-tag text-purple-300">Anime</span>' : ''}</div>
+          ${titleAlt ? `<p class="lib-muted text-xs mt-1">${esc(titleAlt)}</p>` : ''}
+          <div class="flex flex-wrap gap-1.5 mt-2"><span class="lib-tag"><i class="fa-regular fa-calendar"></i> ${yearLabel(item)}</span><span class="lib-tag"><i class="fa-solid fa-star text-amber-400"></i> ${showValue(item.rating)}</span><span class="lib-tag"><i class="fa-solid fa-layer-group"></i> ${fmt(seasons.length)} sezon</span><span class="lib-tag"><i class="fa-solid fa-list-ol"></i> ${fmt(episodeCount)} bölüm</span></div>
+          <p class="lib-muted text-xs mt-2 line-clamp-2">${esc(item.description || 'Açıklama kayıtlı değil.')}</p>
+        </div></div>
+        <div class="sm:w-52 shrink-0 flex sm:flex-col gap-2 sm:items-stretch">
+          <a href="${editUrl(item, 'tv')}" class="inline-flex justify-center items-center gap-2 px-3 py-2 rounded-xl bg-primary text-white text-sm font-bold"><i class="fa-solid fa-pen-to-square"></i> Kaydı aç</a>
+          <span class="lib-tag justify-center"><i class="fa-solid fa-play text-primary"></i> ${fmt(quality.entries.length)} kaynak · ${quality.labels.length ? quality.labels.map(esc).join(', ') : 'kaynak yok'}</span>
+        </div>
+      </div>
+      <details class="mt-4 rounded-2xl border border-hairline">
+        <summary class="px-4 py-3 cursor-pointer font-bold text-sm flex items-center justify-between"><span><i class="fa-solid fa-circle-info text-primary mr-2"></i>Tüm dizi, sezon ve bölüm ayrıntıları</span><i class="fa-solid fa-chevron-down lib-muted"></i></summary>
+        <div class="px-4 sm:px-5 pb-5">${commonMeta(item)}${tvSeasonsMarkup(item)}</div>
+      </details>
+    </article>`;
+  }
+  function renderMovie(item) {
+    const quality = mediaQualities(item);
+    const title = item.title || item.title_english || item.original_title || 'Başlıksız film';
+    const titleAlt = [item.title_english, item.original_title].filter(Boolean).filter(v => v !== title).slice(0, 2).join(' · ');
+    const runtime = item.runtime ? `${esc(item.runtime)}${Number.isFinite(Number(item.runtime)) ? ' dk' : ''}` : '—';
+    return `<article class="p-4 sm:p-5 hover:bg-surface/30 transition">
+      <div class="flex flex-col sm:flex-row gap-4">
+        <div class="flex gap-3 min-w-0 flex-1">${posterMarkup(item)}<div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-center gap-2"><h3 class="font-extrabold text-lg leading-tight">${esc(title)}</h3>${item.is_anime ? '<span class="lib-tag text-purple-300">Anime</span>' : ''}</div>
+          ${titleAlt ? `<p class="lib-muted text-xs mt-1">${esc(titleAlt)}</p>` : ''}
+          <div class="flex flex-wrap gap-1.5 mt-2"><span class="lib-tag"><i class="fa-regular fa-calendar"></i> ${yearLabel(item)}</span><span class="lib-tag"><i class="fa-solid fa-star text-amber-400"></i> ${showValue(item.rating)}</span><span class="lib-tag"><i class="fa-regular fa-clock"></i> ${runtime}</span><span class="lib-tag"><i class="fa-solid fa-play text-primary"></i> ${fmt(quality.entries.length)} kaynak</span></div>
+          <p class="lib-muted text-xs mt-2 line-clamp-2">${esc(item.description || 'Açıklama kayıtlı değil.')}</p>
+        </div></div>
+        <div class="sm:w-52 shrink-0 flex sm:flex-col gap-2 sm:items-stretch">
+          <a href="${editUrl(item, 'movie')}" class="inline-flex justify-center items-center gap-2 px-3 py-2 rounded-xl bg-primary text-white text-sm font-bold"><i class="fa-solid fa-pen-to-square"></i> Kaydı aç</a>
+          <span class="lib-tag justify-center">${quality.labels.length ? quality.labels.map(esc).join(', ') : 'Kaynak yok'}</span>
+        </div>
+      </div>
+      <details class="mt-4 rounded-2xl border border-hairline">
+        <summary class="px-4 py-3 cursor-pointer font-bold text-sm flex items-center justify-between"><span><i class="fa-solid fa-circle-info text-primary mr-2"></i>Tüm film ayrıntıları ve kaynaklar</span><i class="fa-solid fa-chevron-down lib-muted"></i></summary>
+        <div class="px-4 sm:px-5 pb-5">${commonMeta(item)}<div class="mt-4"><p class="lib-muted text-xs font-bold uppercase mb-2">Dosya / yayın kaynakları</p>${sourceMarkup(item.telegram || [])}</div><p class="lib-muted text-xs mt-4">Son güncelleme: ${esc(item.updated_on || '—')}</p></div>
+      </details>
+    </article>`;
+  }
+  async function fetchJson(url) {
+    const response = await fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+    if (response.status === 401) { location.href = '/login'; throw new Error('Oturum süresi dolmuş.'); }
+    if (!response.ok) throw new Error(`Sunucu ${response.status} yanıtı verdi.`);
+    return response.json();
+  }
+  async function loadOverview() {
+    const error = document.getElementById('overview-error');
+    error.classList.add('hidden');
+    try {
+      const [inventory, nodes] = await Promise.all([fetchJson('/api/admin/stats'), fetchJson('/api/system/stats')]);
+      const d = inventory.data || {};
+      document.getElementById('stat-movies').textContent = fmt(d.movies);
+      document.getElementById('stat-shows').textContent = fmt(d.tv_shows);
+      document.getElementById('stat-seasons').textContent = fmt(d.seasons);
+      document.getElementById('stat-episodes').textContent = fmt(d.episodes);
+      document.getElementById('stat-streams').textContent = fmt(d.streams);
+      const dbs = nodes.databases || [];
+      document.getElementById('node-total').innerHTML = `<i class="fa-solid fa-server"></i> ${fmt(dbs.length)} depo`;
+      const wrap = document.getElementById('database-breakdown');
+      wrap.innerHTML = dbs.length ? dbs.map(db => `<div class="rounded-2xl border border-hairline bg-background/50 p-3.5"><div class="flex justify-between gap-3"><strong>${esc(String(db.db_name || '').replace('storage_', 'Depo '))}</strong><span class="lib-tag"><i class="fa-solid fa-circle text-emerald-400" style="font-size:.45rem"></i> bağlı</span></div><div class="flex flex-wrap gap-3 text-sm mt-2"><span><i class="fa-solid fa-film text-primary mr-1"></i>${fmt(db.movie_count)} film</span><span><i class="fa-solid fa-tv text-primary mr-1"></i>${fmt(db.tv_count)} dizi</span></div><p class="lib-muted text-xs mt-2">Veri boyutu: ${fmt((Number(db.dataSize || 0) / 1048576).toFixed(1))} MB</p></div>`).join('') : '<p class="lib-muted text-sm">Depolama verisi bulunamadı.</p>';
+    } catch (e) {
+      error.textContent = `Toplamlar yüklenemedi: ${e.message}`;
+      error.classList.remove('hidden');
+    }
+  }
+  async function loadInventory() {
+    const loading = document.getElementById('inventory-loading');
+    const list = document.getElementById('inventory-list');
+    const err = document.getElementById('inventory-error');
+    const empty = document.getElementById('inventory-empty');
+    loading.classList.remove('hidden'); err.classList.add('hidden'); empty.classList.add('hidden'); list.innerHTML = '';
+    document.getElementById('results-label').textContent = 'Kayıtlar yükleniyor…';
+    const params = new URLSearchParams({ media_type: libraryType, page: String(libraryPage), page_size: String(pageSize), search: librarySearch });
+    try {
+      const data = await fetchJson(`/api/admin/library-inventory?${params.toString()}`);
+      const items = data[libraryType === 'movie' ? 'movies' : 'tv_shows'] || [];
+      libraryTotalPages = Math.max(1, Number(data.total_pages || 1));
+      const total = Number(data.total_count || 0);
+      loading.classList.add('hidden');
+      document.getElementById('results-label').textContent = `${fmt(total)} ${libraryType === 'movie' ? 'film' : 'dizi'} bulundu${librarySearch ? ` · “${librarySearch}” araması` : ''}`;
+      document.getElementById('pagination-info').textContent = total ? `Sayfa ${fmt(libraryPage)} / ${fmt(libraryTotalPages)} · ${fmt(total)} kayıt` : '';
+      document.getElementById('prev-page').disabled = libraryPage <= 1;
+      document.getElementById('next-page').disabled = libraryPage >= libraryTotalPages;
+      if (!items.length) { empty.classList.remove('hidden'); return; }
+      list.innerHTML = items.map(item => libraryType === 'movie' ? renderMovie(item) : renderTv(item)).join('');
+    } catch (e) {
+      loading.classList.add('hidden');
+      err.textContent = `İçerikler yüklenemedi: ${e.message}`;
+      err.classList.remove('hidden');
+      document.getElementById('pagination-info').textContent = '';
+    }
+  }
+  function selectType(type) {
+    if (!['tv', 'movie'].includes(type)) return;
+    libraryType = type; libraryPage = 1;
+    document.getElementById('tab-tv').setAttribute('aria-pressed', String(type === 'tv'));
+    document.getElementById('tab-movie').setAttribute('aria-pressed', String(type === 'movie'));
+    loadInventory();
+  }
+  function searchLibrary() { librarySearch = document.getElementById('library-search').value.trim(); libraryPage = 1; loadInventory(); }
+  function changePage(delta) { const next = libraryPage + delta; if (next < 1 || next > libraryTotalPages) return; libraryPage = next; loadInventory(); window.scrollTo({ top: document.getElementById('inventory-list').getBoundingClientRect().top + window.scrollY - 120, behavior: 'smooth' }); }
+  async function refreshLibrary() {
+    const icon = document.getElementById('refresh-icon'); icon.classList.add('fa-spin');
+    await Promise.all([loadOverview(), loadInventory()]);
+    icon.classList.remove('fa-spin');
+  }
+  document.getElementById('library-search').addEventListener('keydown', e => { if (e.key === 'Enter') searchLibrary(); });
+  document.getElementById('library-search').addEventListener('input', () => { clearTimeout(searchTimer); searchTimer = setTimeout(searchLibrary, 450); });
+  loadOverview();
+  loadInventory();
+</script>
+{% endblock %}

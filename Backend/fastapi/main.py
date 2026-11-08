@@ -85,6 +85,7 @@ from Backend.fastapi.routes.api_routes import (
     setup_status_api,
     link_token_user_api,
     list_custom_catalogs_api,
+    library_inventory_api,
     list_media_api,
     manage_subscriber_api,
     manual_add_media_api,
@@ -133,6 +134,7 @@ from Backend.fastapi.routes.template_routes import (
     custom_catalogs_page,
     dashboard_page,
     edit_media_page,
+    library_dashboard_page,
     login_page,
     login_post,
     logout,
@@ -300,6 +302,10 @@ async def root(request: Request, _: bool = Depends(require_auth)):
 async def admin_dashboard(request: Request, _: bool = Depends(require_auth)):
     return await admin_dashboard_page(request, _)
 
+@app.get("/admin/library", response_class=HTMLResponse)
+async def admin_library_dashboard(request: Request, _: bool = Depends(require_auth)):
+    return await library_dashboard_page(request, _)
+
 @app.get("/media/manage", response_class=HTMLResponse)
 async def media_management(request: Request, media_type: str = "movie", custom: bool = False, _: bool = Depends(require_auth)):
     return await media_management_page(request, media_type, custom, _)
@@ -322,6 +328,16 @@ async def list_media(
     _: bool = Depends(require_auth)
 ):
     return await list_media_api(media_type, page, page_size, search, custom)
+
+@app.get("/api/admin/library-inventory")
+async def get_library_inventory(
+    media_type: str = Query("tv", regex="^(movie|tv)$"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(24, ge=1, le=100),
+    search: str = Query("", max_length=100),
+    _: bool = Depends(require_auth),
+):
+    return await library_inventory_api(media_type, page, page_size, search)
 
 @app.delete("/api/media/delete")
 async def delete_media(tmdb_id: int, db_index: int, media_type: str, _: bool = Depends(require_auth)):

@@ -41,6 +41,12 @@ async def admin_dashboard_page(request: Request, _: bool = Depends(require_auth)
     return templates.TemplateResponse("admin_dashboard.html", ctx)
 
 
+async def library_dashboard_page(request: Request, _: bool = Depends(require_auth)):
+    ctx = _base_context(request)
+    ctx["current_user"] = get_current_user(request)
+    return templates.TemplateResponse("library_dashboard.html", ctx)
+
+
 #----- Login form (redirects to home when already authenticated)
 async def login_page(request: Request):
     if is_authenticated(request):
