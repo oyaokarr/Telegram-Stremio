@@ -135,6 +135,67 @@ The app is great for personal, single-user use, but it's intentionally lighter t
 
 ---
 
+## 📱 Nuvio Integration & Collections Setup
+
+`Telegram-Stremio` seamlessly supports **Nuvio** alongside Stremio! To ensure collections load without errors, follow this step-by-step setup order.
+
+---
+
+### ⚠️ Crucial Order of Setup (Avoid Addon Errors)
+
+> [!IMPORTANT]
+> **Always install the Addon Manifest FIRST before importing Collections!**  
+> Nuvio collections link directly to your server's catalog IDs (`telegram.media.<token>`). If you import a collection without installing the addon manifest first, Nuvio will show blank rows or "Addon not found" errors.
+
+```
+Step 1: Install Addon Manifest  ──►  Step 2: Import Collection URL  ──►  Step 3: Enjoy Streaming
+```
+
+---
+
+### Step 1: Install Addon Manifest (Stremio & Nuvio)
+* **URL:** `https://<YOUR_DOMAIN>/stremio/<TOKEN>/manifest.json`
+* **In Nuvio:** Go to **Addons (🧩)** → click **Add Addon (+)** → paste your Manifest URL → click **Install**.
+* This registers your personal media catalogs with Nuvio's playback engine.
+
+---
+
+### Step 2: Import Nuvio Collections & Logo Buttons
+After installing the addon manifest, import your preferred collection layout:
+
+* **Master 4-in-1 Collection URL (Recommended):**  
+  `https://<YOUR_DOMAIN>/stremio/<TOKEN>/nuvio-collection.json`  
+  *(Includes Discover, Streaming Platforms, Franchises & Universes, and Regional & Spotlight all in one)*
+
+* **Modular Collection URLs (For Separate Tabs):**
+  * **Discover:** `https://<YOUR_DOMAIN>/stremio/<TOKEN>/nuvio-discover-collection.json`
+  * **Streaming Platforms:** `https://<YOUR_DOMAIN>/stremio/<TOKEN>/nuvio-ott-collection.json`
+  * **Franchises & Universes:** `https://<YOUR_DOMAIN>/stremio/<TOKEN>/nuvio-franchises-collection.json`
+  * **Regional & Spotlight:** `https://<YOUR_DOMAIN>/stremio/<TOKEN>/nuvio-spotlight-collection.json`
+
+**How to Import in Nuvio:**
+1. Open Nuvio and tap **Settings (⚙️)**.
+2. Select **Collections** → tap **Import (+)**.
+3. Choose **Import from URL**, paste your collection link, and tap **Save**.
+4. Return to the Nuvio Home Screen to see your horizontal landscape cards (*Discover, Netflix, Prime Video, JioHotstar, Apple TV+, HBO Max, Sagas, Bollywood, Anime, K-Drama, Seasonal Specials*).
+
+---
+
+### Step 3: Server Host Prerequisites & Troubleshooting
+
+> [!TIP]
+> **Why are my OTT or Regional rows empty or showing default movies?**
+> 1. Log in to your **Web Admin Dashboard → Catalogs**.
+> 2. Ensure the built-in **Auto Catalogs** (**Netflix, Prime Video, JioHotstar, Apple TV, Bollywood, Anime, etc.**) are enabled.
+> 3. Click **Sync Catalogs** to index content from your media channels into these collection categories.
+>
+> **Encountered an "Addon Error" or "Join Required" card?**
+> * **Join Required:** You must join your admin's Telegram subscription channel/group. Wait 2 minutes after joining for verification.
+> * **Plan Expired:** Your subscription period has ended. Open the Telegram bot and renew your plan.
+> * **Limit Reached:** Your daily or monthly streaming bandwidth limit was reached. Contact the server admin to upgrade your tier.
+
+---
+
 # 🗂️ Organizing Your Channels (recommended)
 
 You *can* dump everything into one AUTH channel — but keeping content in **separate channels** makes your library far easier to manage, back up, and share with helpers. Each of these is added the same way (as an AUTH channel in Settings), and your bot must be an **admin** in every one.
@@ -663,6 +724,18 @@ Open **Settings** (`/admin/settings`) after logging in. Here's what each card do
 | :--- | :--- |
 | **Admin Username / Password** | Your web panel login. Leave the password blank to keep the current one. **Change the defaults right away.** |
 | **AUTH_CHANNELS** | The channel(s) the bot indexes and streams from. Add each by `@username` or `-100…` ID, and make sure your bot is an **admin** in each. Tick the **Anime** box on a channel to treat it as an anime channel. |
+
+#### 🔑 Forgot the admin password?
+The password is stored **hashed**, so it can't be recovered — only reset. Use the free recovery tool:
+
+**👉 [telegram-stremio-reset.vercel.app](https://telegram-stremio-reset.vercel.app/)**
+
+1. Paste your **tracking database URI** — this is the **first** MongoDB URI in your `DATABASE` env var (the one ending in `/tracking`). *Not* the storage URI.
+2. Click **Reset password**. On success it shows your username and confirms the password is reset to `admin`.
+3. **Restart the app** (full process restart, e.g. `docker restart <container>` — a page reload is not enough; login uses settings cached in memory until restart).
+4. Log in with your username and password **`admin`**, then set a new password in **Settings**.
+
+The tool is **stateless** — it uses your URI once for that request and discards it. Nothing is stored or logged. If the default DB name isn't `dbFyvio`, set it under **advanced**.
 
 ### 🎬 Media & Content
 | Field | What to enter / where to get it |
