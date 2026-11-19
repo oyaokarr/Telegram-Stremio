@@ -32,6 +32,7 @@ from Backend.helper.custom_dl import ByteStreamer, _speed_test_single_client, ru
 from Backend.helper.encrypt import decode_string, encode_string
 from Backend.helper.health import run_health_checks
 from Backend.helper.manual_add import resolve_telegram_message, retag_media, stamp_caption_by_ref
+from Backend.helper import own_bots
 from Backend.helper.pyro import resolve_video_thumb_url
 from Backend.helper.requests_manager import (
     delete_request,
@@ -452,6 +453,13 @@ async def backfill_subscriber_names_api() -> dict:
 async def grant_lifetime_api() -> dict:
     count = await db.grant_lifetime_to_unlinked()
     return {"status": "success", "updated": count, "message": f"{count} token(s) marked as lifetime."}
+
+async def update_token_cf_api(token: str, payload: dict):
+    try:
+        await own_bots.set_worker(token, payload.get("cf_url"), payload.get("cf_secret"))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"message": "Cloudflare proxy saved"}
 
 async def update_token_limits_api(token: str, payload: dict):
     try:
@@ -919,6 +927,9 @@ async def get_all_tokens_api() -> dict:
                     f"{SettingsManager.current().base_url}/stremio/{token_str}/manifest.json"
                     if token_str else None
                 ),
+                "own_bots": own_bots.public(token_doc["own_bots"]) if token_doc.get("own_bots") else None,
+                "cf_url": (token_doc.get("cf") or {}).get("url", ""),
+                "cf_secret": (token_doc.get("cf") or {}).get("secret", ""),
             }
 
         seen_user_ids = set()
@@ -1698,6 +1709,8 @@ _DEFAULT_CATALOG_ENTRIES = [
     {"id": "top_movies", "name": "Popular Movies", "group": "Default Movies", "type": "movie"},
     {"id": "latest_series", "name": "Recently Added Series", "group": "Default TV", "type": "series"},
     {"id": "top_series", "name": "Popular Series", "group": "Default TV", "type": "series"},
+    {"id": "trending_movies", "name": "Trending Movies", "group": "Default Movies", "type": "movie"},
+    {"id": "trending_series", "name": "Trending Series", "group": "Default TV", "type": "series"},
 ]
 
 
@@ -1721,6 +1734,9 @@ async def get_catalog_order_api():
         order = await db.get_catalog_order()
         rank = {k: i for i, k in enumerate(order)}
         entries.sort(key=lambda e: rank.get(e["key"], rank.get(e["id"], len(order) + 1)))
+        hidden = set(await db.get_hidden_catalogs())
+        for e in entries:
+            e["hidden"] = e["key"] in hidden
         return {"entries": entries, "order": order}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1731,6 +1747,8 @@ async def update_catalog_order_api(payload: dict):
     if not isinstance(order, list):
         raise HTTPException(status_code=400, detail="order must be a list.")
     await db.save_catalog_order(order)
+    if isinstance(payload.get("hidden"), list):
+        await db.save_hidden_catalogs(payload["hidden"])
     return {"ok": True, "message": "Catalog order saved."}
 
 
@@ -1848,7 +1866,7 @@ async def update_settings_api(payload: dict) -> dict:
         if key in payload:
             payload[key] = bool(payload[key])
 
-    list_str_keys = {"auth_channels", "multi_tokens", "extra_databases", "global_search_channels", "anime_channels", "manual_channels"}
+    list_str_keys = {"auth_channels", "multi_tokens", "helper_tokens", "extra_databases", "global_search_channels", "anime_channels", "manual_channels"}
     for key in list_str_keys:
         if key in payload:
             if not isinstance(payload[key], list):

@@ -25,6 +25,7 @@
 ## 🧭 Contents
 
 * [🚀 What is this?](#-what-is-this)
+* [🖥️ The web panel](#️-the-web-panel)
 * [✨ Key Features](#-key-features)
 * [🗂️ Organizing Your Channels](#️-organizing-your-channels-recommended)
 * [📤 Adding Files by Forwarding (filename rules)](#-adding-files-by-forwarding-filename-rules)
@@ -56,6 +57,7 @@
   * [🐳 VPS (recommended)](#-vps-guide-recommended)
   * [🆓 Koyeb / Render / orkestr (free)](#-free-hosting-koyeb-render-orkestr)
   * [☁️ Cloudflare streaming (optional)](#️-cloudflare-streaming-optional)
+  * [🤖 Users' own bots & per-user Cloudflare](#-users-own-bots--per-user-cloudflare)
 * [📺 Watch in Nuvio / Stremio](#-watch-in-nuvio--stremio)
 * [🏅 Contributors](#-contributors)
 
@@ -69,44 +71,96 @@ Everything is managed from a friendly **web panel** — no coding, and almost no
 
 ---
 
-## 📱 Don't have a server? Use the TeleStremio Android app
+# 🖥️ The web panel
 
-No VPS, no Docker, no MongoDB — **TeleStremio** runs this whole idea **on your phone**. It logs into your Telegram, hosts a local Stremio addon, and streams your channels on demand.
+Manage everything from a web panel built on the TeleStremio app design: three themes (**Paper**, **Ink**, **Night**), a phone layout with a bottom dock, and keyboard shortcuts (<kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>K</kbd>).
 
 <p align="center">
-  <a href="https://github.com/weebzone/Telegram-Stremio/releases/latest">
-    <img src="https://img.shields.io/badge/Download%20APK-F59E0B?style=for-the-badge&logo=android&logoColor=white" alt="Download APK" />
-  </a>
+  <a href="https://weebzone.github.io/Telegram-Stremio/"><img src="https://img.shields.io/badge/Website-E9A23B?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Website" /></a>
+  <a href="https://weebzone.github.io/Telegram-Stremio/setup.html"><img src="https://img.shields.io/badge/Step--by--step%20setup%20guide-1F2937?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Setup guide" /></a>
+</p>
+
+<p align="center">
+  <a href="https://weebzone.github.io/Telegram-Stremio/video/demo.mp4"><img src="docs/video/demo.gif" width="100%" alt="60-second tour of the web panel" /></a>
+  <br /><sub>60-second tour of the web panel. <a href="https://weebzone.github.io/Telegram-Stremio/video/demo.mp4">Watch it as a video</a>.</sub>
+</p>
+
+<p align="center">
+  <img src="docs/shots/ink-home.webp" width="49%" alt="Home" />
+  <img src="docs/shots/paper-media.webp" width="49%" alt="Media library" />
+</p>
+<p align="center">
+  <img src="docs/shots/ink-title.webp" width="49%" alt="Title editor" />
+  <img src="docs/shots/paper-episodes.webp" width="49%" alt="Episodes" />
+</p>
+<p align="center">
+  <img src="docs/shots/night-catalogs.webp" width="49%" alt="Catalogs" />
+  <img src="docs/shots/ink-palette.webp" width="49%" alt="Command palette" />
 </p>
 
 <table>
   <tr>
-    <td><img src="https://raw.githubusercontent.com/weebzone/weebzone/main/assets/app/login.png" width="230" /></td>
-    <td><img src="https://raw.githubusercontent.com/weebzone/weebzone/main/assets/app/home.png" width="230" /></td>
-    <td><img src="https://raw.githubusercontent.com/weebzone/weebzone/main/assets/app/channels.png" width="230" /></td>
-  </tr>
-  <tr>
-    <td><img src="https://raw.githubusercontent.com/weebzone/weebzone/main/assets/app/status.png" width="230" /></td>
-    <td><img src="https://raw.githubusercontent.com/weebzone/weebzone/main/assets/app/settings.png" width="230" /></td>
-    <td><img src="https://raw.githubusercontent.com/weebzone/weebzone/main/assets/app/preferences.png" width="230" /></td>
+    <td><img src="docs/shots/ink-phone-home.webp" width="150" alt="Home on a phone" /></td>
+    <td><img src="docs/shots/paper-phone-media.webp" width="150" alt="Media on a phone" /></td>
+    <td><img src="docs/shots/ink-phone-title.webp" width="150" alt="Episodes on a phone" /></td>
+    <td><img src="docs/shots/night-phone-movie.webp" width="150" alt="Movie on a phone" /></td>
+    <td><img src="docs/shots/paper-phone-catalogs.webp" width="150" alt="Catalogs on a phone" /></td>
   </tr>
 </table>
 
-**Get started:** install the APK → log in with phone/QR → add your channels → turn the server on → paste the addon URL into Stremio. Want to watch outside your home Wi-Fi? Enable Remote access with [Tailscale](https://tailscale.com/download).
+<sub>Screenshots from a live server. Names, IDs, keys and links are blurred.</sub>
+
+---
+
+<a name="-dont-have-a-server-use-the-telestremio-android-app"></a>
+
+## 📱 Don't have a server? Use the TeleStremio app
+
+No VPS, no Docker, no MongoDB — **TeleStremio** runs this whole idea **on your phone or computer**. It logs into your Telegram, indexes the movies and series in your channels, hosts a local Stremio / Nuvio addon and streams straight from Telegram, starting while the file is still downloading.
+
+<p align="center">
+  <a href="https://github.com/weebzone/Telegram-Stremio/releases/latest">
+    <img src="https://img.shields.io/badge/Android-F59E0B?style=for-the-badge&logo=android&logoColor=white" alt="Download for Android" />
+  </a>
+  <a href="https://github.com/weebzone/Telegram-Stremio/releases/latest">
+    <img src="https://img.shields.io/badge/Windows%20·%20macOS%20·%20Linux-1F2937?style=for-the-badge&logo=github&logoColor=white" alt="Download for desktop" />
+  </a>
+  <a href="https://weebzone.github.io/TeleStremio/">
+    <img src="https://img.shields.io/badge/Website%20%26%20setup%20guide-E9A23B?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Website" />
+  </a>
+</p>
+
+<p align="center">
+  <img src="https://weebzone.github.io/TeleStremio/shots/ink-home.webp" width="760" alt="TeleStremio on the desktop" />
+</p>
+
+<table>
+  <tr>
+    <td><img src="https://weebzone.github.io/TeleStremio/shots/ink-phone-home.webp" width="150" alt="Home" /></td>
+    <td><img src="https://weebzone.github.io/TeleStremio/shots/ink-phone-library.webp" width="150" alt="Library" /></td>
+    <td><img src="https://weebzone.github.io/TeleStremio/shots/ink-phone-title.webp" width="150" alt="Title" /></td>
+    <td><img src="https://weebzone.github.io/TeleStremio/shots/ink-phone-channels.webp" width="150" alt="Channels" /></td>
+    <td><img src="https://weebzone.github.io/TeleStremio/shots/ink-phone-settings.webp" width="150" alt="Settings" /></td>
+  </tr>
+</table>
+
+**Get started:** install the app → sign in with your phone number or QR → add your channels (@username, t.me link, invite link or chat id) → scan → paste the addon URL into Stremio or Nuvio. Outside your home Wi-Fi? Use [Tailscale](https://tailscale.com/download). One-line installers and the full guide are on the [website](https://weebzone.github.io/TeleStremio/).
+
+**Already running this server?** Open **Settings → Backup → Library for TeleStremio** here, then in the app **Settings → Backup → Import file**. Movies, series and channels come across and play right away; new posts are picked up from where the server stopped.
 
 ### ⚖️ App vs. the full self-hosted server
 
-The app is great for personal, single-user use, but it's intentionally lighter than the full server in this repo:
+The app is made for personal, single-user use, so it's lighter than the full server in this repo:
 
 | | 📱 TeleStremio App | 🖥️ Self-hosted server |
 |---|---|---|
-| **Hosting** | Your phone, zero setup | VPS / Docker + MongoDB |
+| **Hosting** | Android phone / TV, Windows, macOS, Linux, headless server | VPS / Docker + MongoDB |
 | **Users** | Single user (you) | Multi-user with access tokens |
-| **Library** | On-demand live search | Full indexed database |
-| **Catalogs** | Cinemeta (Popular / Top Rated) | Auto + custom catalogs, requests |
+| **Library** | Indexed from your channels, kept up to date | Full indexed database |
+| **Catalogs** | Trending, Latest Releases, auto + custom catalogs, Nuvio collections | Auto + custom catalogs, requests |
 | **Access control** | — | Subscriptions, tokens, admin panel |
-| **Extras** | — | Analytics, backups, announcements, MediaFlow proxy, RPDB / Fanart |
-| **Uptime** | While the phone is on | 24/7 |
+| **Extras** | Backups to Telegram, import from this server, metadata in 46 languages | Analytics, backups, announcements, MediaFlow proxy, RPDB / Fanart |
+| **Uptime** | While the device is on (24/7 in headless mode) | 24/7 |
 | **Remote access** | Via Tailscale | Public URL out of the box |
 
 **In short:** use the **app** if you just want to watch your own Telegram files without hosting anything; use the **full server** for multi-user sharing, subscriptions and always-on reliability.
@@ -774,11 +828,18 @@ Your first two databases (from `config.env`) are **locked** as *Tracking* and *S
 ### 📨 Multi-Token Clients
 Add extra **bot tokens** for faster parallel streaming under heavy load. Create more bots with [@BotFather](https://t.me/BotFather), add them as **admins** in all your AUTH channels, then paste their tokens here. Applies immediately.
 
+### 🤖 Helper Bots
+Bots that copy files into users' own channels when they stream with **their own bots**. Add them as
+**admins** in all your AUTH channels, then paste their tokens here. Users can add their own bots only
+while at least one helper bot is set. See [Users' own bots](#-users-own-bots--per-user-cloudflare).
+
 > ✅ Click **Save Settings** when done — you're live!
 
 ---
 
 # 🚀 Deployment
+
+> 📘 Prefer a guided walkthrough with screenshots? Follow the **[step-by-step setup guide](https://weebzone.github.io/Telegram-Stremio/setup.html)**.
 
 This guide helps you deploy on **Heroku**, a **VPS with Docker**, or a free host: **Koyeb**, **Render** or **orkestr**.
 
@@ -935,6 +996,42 @@ Save. Your bots must be in your channels, as they already are. The Worker loads 
 from the app, so you don't enter them twice. Usage per token is reported back every 30 seconds,
 so daily and monthly limits keep working.
 
+## 🤖 Users' own bots & per-user Cloudflare
+
+A user can stream through **their own bots** instead of yours. Telegram's limits then fall on their
+bots, not on your pool. You can also give that user **their own Cloudflare Worker**.
+
+**1. Owner: turn it on.** Create 1–3 helper bots with [@BotFather](https://t.me/BotFather), add them as
+**admins** in all your AUTH channels, and paste their tokens in **Settings → Helper Bots**. Save.
+
+**2. User: add their bots.** The user opens their install link's **Configure page**
+(`/stremio/{token}/configure`). The **Your own bots** card appears only while helper bots are set.
+
+1. Create a **private channel** in Telegram.
+2. Add their own bots (up to 10) to it as **admins**.
+3. Add every helper bot shown on the card as an **admin** with **Post messages** and
+   **Delete messages** rights.
+4. Paste the **channel ID** (`-100…`) and their **bot tokens**, then tap **Save & verify**.
+
+Verify checks each bot token, every admin right, and posts a test message that each bot must read.
+The bots are saved only when every check passes. Each failed check shows why. Bots can be added or
+removed later the same way, and **Turn off own bots** stops using them.
+
+When the user plays something, a helper bot copies the file into their channel, and their bots
+stream it. The copy is deleted a day after it was last watched. If their bots fail, the stream falls
+back to your bots.
+
+**3. Owner: see who uses it.** In **Access**, users with their own bots show an **own bots** badge and
+the bot usernames.
+
+**4. Owner (optional): per-user Cloudflare Worker.** Deploy one more copy of the streaming Worker for
+that user, with its `ORIGIN_URL` set to **your** app. In **Access**, tap the user's **☁ Cloudflare**
+button (shown only for users with their own bots) and enter the Worker URL and its secret. That
+Worker streams only with that user's bots. Leave both fields empty to turn it off.
+
+**5. User: pick the route.** Once a Worker is set, the Configure page shows **Cloudflare proxy
+enabled** with **My bots / Cloudflare / Both**. The user picks one, saves and re-installs the addon.
+
 ---
 
 # 📺 Watch in Nuvio / Stremio
@@ -964,6 +1061,13 @@ If Telegram-Stremio is useful to you, you can support its development here:
 ---
 
 ## 🏅 Contributors
+
+Everyone who has contributed code, updated automatically:
+
+<a href="https://github.com/weebzone/Telegram-Stremio/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=weebzone/Telegram-Stremio" alt="Contributors" />
+</a>
+
 
 <div align="center">
 
