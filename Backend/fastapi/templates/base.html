@@ -1,5 +1,6 @@
 {%- macro rgb(h) -%}{{ h[1:3]|int(base=16) }} {{ h[3:5]|int(base=16) }} {{ h[5:7]|int(base=16) }}{%- endmacro -%}
 {%- set path = request.url.path -%}
+{%- set is_admin_ui = path in ['/', '/login', '/media/manage', '/media/edit', '/catalogs'] or path.startswith('/admin') -%}
 {%- set nav = [
     ('/', 'Home', 'fa-house', '/'),
     ('/admin/library', 'Kütüphane', 'fa-photo-film', '/admin/library'),
@@ -15,7 +16,7 @@
 {%- set dock_count = 5 -%}
 {%- macro is_active(prefix) -%}{{ 'true' if (prefix == '/' and path == '/') or (prefix != '/' and path.startswith(prefix)) else '' }}{%- endmacro -%}
 <!DOCTYPE html>
-<html lang="en" data-theme="{{ current_theme }}" class="{{ 'dark' if theme.is_dark else 'light' }}">
+<html lang="{{ 'tr' if is_admin_ui else 'en' }}" data-theme="{{ current_theme }}" class="{{ 'dark' if theme.is_dark else 'light' }}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -36,6 +37,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+{% if is_admin_ui %}
+<script src="/static/admin-turkish.js?v=1" defer></script>
+{% endif %}
 
 <style>
 {% for key, t in themes.items() %}

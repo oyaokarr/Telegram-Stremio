@@ -568,7 +568,7 @@ function renderCatalogs() {
       <button class="text-left w-full min-w-0" onclick="selectCatalog('${c._id}')">
         <div class="flex items-center gap-2 min-w-0">
           <span class="text-primary w-5 text-center shrink-0">${c.auto ? '<i class="fa-solid fa-wand-magic-sparkles"></i>' : meta.icon}</span>
-          <h3 class="font-semibold truncate">${escapeHtml(c.name)}</h3>
+          <h3 class="font-semibold truncate" data-no-translate>${escapeHtml(c.name)}</h3>
           ${c.auto ? '<span class="pill text-[0.62rem] px-2 py-0.5">Auto</span>' : ''}
         </div>
         <div class="flex items-center gap-2 mt-2 flex-wrap">
@@ -607,7 +607,9 @@ function updateSelectedHeader() {
     deleteBtn.classList.add('hidden');
     visibilityPill.classList.add('hidden');
     countPill.classList.add('hidden');
-    document.getElementById('selected-title').textContent = 'Select a catalog';
+    const selectedTitle = document.getElementById('selected-title');
+    selectedTitle.removeAttribute('data-no-translate');
+    selectedTitle.textContent = 'Select a catalog';
     document.getElementById('selected-subtitle').textContent = 'Choose a catalog from the left side to add or remove titles.';
     return;
   }
@@ -623,7 +625,9 @@ function updateSelectedHeader() {
   visibilityPill.className = `pill vis-chip ${meta.chip}`;
   visibilityPill.innerHTML = `${meta.icon} ${escapeHtml(visibilityLabel(mode))}`;
   countPill.textContent = `${catalog.item_count || 0} title${catalog.item_count === 1 ? '' : 's'}`;
-  document.getElementById('selected-title').textContent = catalog.name || 'Selected Catalog';
+  const selectedTitle = document.getElementById('selected-title');
+  selectedTitle.setAttribute('data-no-translate', 'true');
+  selectedTitle.textContent = catalog.name || 'Selected Catalog';
   document.getElementById('selected-subtitle').textContent = 'Manage titles and choose who can see this catalog in Stremio.';
 
   const sel = document.getElementById('ws-visibility');
